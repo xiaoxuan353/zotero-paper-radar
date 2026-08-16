@@ -81,20 +81,6 @@ npm run build
 
    新增其他期刊：万方期刊主页的 RSS 链接替换期刊代码即可；Elsevier 把期刊 ISSN 去掉横线拼入 `https://rss.sciencedirect.com/publication/science/<ISSN>`；ASCE / T&F 在期刊页面找 RSS 图标复制链接。
 
-## 常见问题
-
-**Q: 分享插件会泄露我的 API Key 吗？**
-不会。Key 只存于你本机 Zotero 配置目录，插件文件（xpi）与仓库源码中均不含密钥。
-
-**Q: 为什么不需要 Zotero 的 User ID / API Key？**
-插件运行在 Zotero 内部，直接调用程序接口写本地文献库；上传云端由 Zotero 自带的账号同步完成，与手动添加文献的路径完全一致。
-
-**Q: 中文期刊支持如何？**
-万方源正常抓取评估；Crossref 元数据补全对中文期刊有限，标题、摘要、链接正常入库。
-
-**Q: 可以离线用吗？**
-入库可以（本地写库），抓取与评估需要网络。
-
 ## 开发
 
 基于 [zotero-plugin-template](https://github.com/windingwind/zotero-plugin-template) 构建（TypeScript + esbuild + zotero-plugin-scaffold）。
