@@ -2,7 +2,10 @@
 
 > Zotero 插件：自动盯梢期刊更新，AI 帮你筛论文，高相关的直接进文献库。支持 Zotero 7 / 8 / 9。
 
-![设置面板](doc/settings.png)
+<p align="center">
+  <img src="doc/settings-top.png" width="49%" alt="设置面板（上半）" />
+  <img src="doc/settings-bottom.png" width="49%" alt="设置面板（下半）" />
+</p>
 
 ## 这是什么
 
