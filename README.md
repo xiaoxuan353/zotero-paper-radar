@@ -22,10 +22,6 @@ Paper Radar 把"每周手动翻期刊找论文"变成一条全自动流水线：
 
 - 🔌 任意 OpenAI 兼容接口：火山方舟 / DeepSeek / 硅基流动 / 本地 Ollama 均可
 - ✍️ 研究方向自由填写，评估提示词可一键「AI 生成」
-- 🧪 内置「测试连接」按钮，配置是否可用即刻验证
-- ⏱ 支持菜单手动触发与定时自动运行
-- 🔒 API Key 只存本机，分享插件、上传仓库都不含密钥
-- 🚫 无需 Zotero API Key：插件在 Zotero 内部直接写本地文献库，云同步由 Zotero 自带机制完成
 
 ## 安装
 
@@ -61,19 +57,26 @@ npm run build
    | 本地 Ollama | `http://localhost:11434/v1` | `qwen3:8b` 等 |
 2. **研究方向**：自由描述你的研究领域与关注点（出厂默认为桥梁承载能力评估方向，换成你自己的）；
 3. 点 **「AI 生成评估要求」**：调用你的大模型，自动生成与研究方向匹配的高/中/低分档判定标准（也可手工修改，但第 1 条输出格式规则为程序解析所需，勿动）；
-4. **RSS 订阅源**：每行一个 URL，按需增删。
+4. **RSS 订阅源**：每行一个 URL，按需增删。默认内置 14 个订阅源：
 
-### 日常运行
+   | 期刊 | 订阅 URL |
+   |---|---|
+   | 工程力学（万方） | `https://apps.wanfangdata.com.cn/perios/rss/gclx` |
+   | 公路交通科技（万方） | `https://apps.wanfangdata.com.cn/perios/rss/gljtkj` |
+   | 国外桥梁（万方） | `https://apps.wanfangdata.com.cn/perios/rss/gwql` |
+   | 土木工程学报（万方） | `https://apps.wanfangdata.com.cn/perios/rss/tmgcxb` |
+   | 振动与冲击（万方） | `https://apps.wanfangdata.com.cn/perios/rss/zdycj` |
+   | 中国公路学报（万方） | `https://apps.wanfangdata.com.cn/perios/rss/zgglxb` |
+   | 中国铁道科学（万方） | `https://apps.wanfangdata.com.cn/perios/rss/zgtdkx` |
+   | J. Bridge Engineering（ASCE） | `https://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jbenf2` |
+   | J. Structural Engineering（ASCE） | `https://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jsendh` |
+   | Engineering Structures（Elsevier） | `https://rss.sciencedirect.com/publication/science/01410296` |
+   | Structures（Elsevier） | `https://rss.sciencedirect.com/publication/science/23520124` |
+   | Thin-Walled Structures（Elsevier） | `https://rss.sciencedirect.com/publication/science/02638231` |
+   | J. Sound and Vibration（Elsevier） | `https://rss.sciencedirect.com/publication/science/0022460X` |
+   | Structure and Infrastructure Engineering（T&F） | `https://www.tandfonline.com/feed/rss/nsie20` |
 
-- **手动**：菜单 `工具 → 论文雷达 → 立即抓取评估`。进度窗口实时显示评估进度，结束汇总"评估 N 篇，入库 X 篇（高 a / 中 b）"；
-- **自动**：设置面板勾选「启用自动抓取评估」并设间隔小时数（默认 168 = 每周），Zotero 运行期间到点自动执行；
-- **看结果**：左侧文献库出现 `AI精选前沿论文` 分类；点 `相关度：高` 标签可快速筛出最值得精读的论文；每篇论文下挂有「AI 研判解读」子笔记，浏览时先看笔记再决定是否精读。
-
-### 使用建议
-
-- 每周至少运行一次；抓取窗口建议设为 **14 天**（默认 9）——RSS 是"最新 N 条"的滑动窗口，更大的窗口配合本地去重可以避免高产出刊和目录型时间戳造成的边缘漏抓，几乎没有额外代价；
-- 评估失败的论文下次运行会自动重试，中途关闭 Zotero 无副作用；
-- 国外源（ASCE / Elsevier / T&F）如频繁失败，在 Zotero 首选项中配置代理后由插件自动复用。
+   新增其他期刊：万方期刊主页的 RSS 链接替换期刊代码即可；Elsevier 把期刊 ISSN 去掉横线拼入 `https://rss.sciencedirect.com/publication/science/<ISSN>`；ASCE / T&F 在期刊页面找 RSS 图标复制链接。
 
 ## 常见问题
 
@@ -92,12 +95,6 @@ npm run build
 ## 开发
 
 基于 [zotero-plugin-template](https://github.com/windingwind/zotero-plugin-template) 构建（TypeScript + esbuild + zotero-plugin-scaffold）。
-
-```bash
-npm run build       # 打包 xpi + 类型检查
-npm run lint:fix    # 格式化与 lint 修复
-npm start           # 热重载开发实例（需先配置 .env）
-```
 
 ## 许可
 
