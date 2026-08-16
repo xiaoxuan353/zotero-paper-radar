@@ -161,5 +161,7 @@ function bindCheckbox(win: Window, id: string, prefKey: string): void {
     return;
   }
   el.checked = Boolean(getPrefAny(prefKey));
+  // HTML checkbox fires "change"; XUL checkbox fires "command".
+  el.addEventListener("change", () => setPrefAny(prefKey, el.checked));
   el.addEventListener("command", () => setPrefAny(prefKey, el.checked));
 }

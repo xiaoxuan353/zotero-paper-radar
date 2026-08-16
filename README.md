@@ -43,6 +43,7 @@ npm run build
 # 产物位于 .scaffold/build/paper-radar.xpi
 # 开发调试：复制 .env.example 为 .env 并填入 Zotero 路径后 npm start（热重载）
 ```
+
 </details>
 
 ## 使用
@@ -62,22 +63,22 @@ npm run build
 3. 点 **「AI 生成评估要求」**：调用你的大模型，自动生成与研究方向匹配的高/中/低分档判定标准（也可手工修改，但第 1 条输出格式规则为程序解析所需，勿动）；
 4. **RSS 订阅源**：每行一个 URL，按需增删。默认内置 14 个订阅源：
 
-   | 期刊 | 订阅 URL |
-   |---|---|
-   | 工程力学（万方） | `https://apps.wanfangdata.com.cn/perios/rss/gclx` |
-   | 公路交通科技（万方） | `https://apps.wanfangdata.com.cn/perios/rss/gljtkj` |
-   | 国外桥梁（万方） | `https://apps.wanfangdata.com.cn/perios/rss/gwql` |
-   | 土木工程学报（万方） | `https://apps.wanfangdata.com.cn/perios/rss/tmgcxb` |
-   | 振动与冲击（万方） | `https://apps.wanfangdata.com.cn/perios/rss/zdycj` |
-   | 中国公路学报（万方） | `https://apps.wanfangdata.com.cn/perios/rss/zgglxb` |
-   | 中国铁道科学（万方） | `https://apps.wanfangdata.com.cn/perios/rss/zgtdkx` |
-   | J. Bridge Engineering（ASCE） | `https://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jbenf2` |
-   | J. Structural Engineering（ASCE） | `https://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jsendh` |
-   | Engineering Structures（Elsevier） | `https://rss.sciencedirect.com/publication/science/01410296` |
-   | Structures（Elsevier） | `https://rss.sciencedirect.com/publication/science/23520124` |
-   | Thin-Walled Structures（Elsevier） | `https://rss.sciencedirect.com/publication/science/02638231` |
-   | J. Sound and Vibration（Elsevier） | `https://rss.sciencedirect.com/publication/science/0022460X` |
-   | Structure and Infrastructure Engineering（T&F） | `https://www.tandfonline.com/feed/rss/nsie20` |
+   | 期刊                                            | 订阅 URL                                                               |
+   | ----------------------------------------------- | ---------------------------------------------------------------------- |
+   | 工程力学（万方）                                | `https://apps.wanfangdata.com.cn/perios/rss/gclx`                      |
+   | 公路交通科技（万方）                            | `https://apps.wanfangdata.com.cn/perios/rss/gljtkj`                    |
+   | 国外桥梁（万方）                                | `https://apps.wanfangdata.com.cn/perios/rss/gwql`                      |
+   | 土木工程学报（万方）                            | `https://apps.wanfangdata.com.cn/perios/rss/tmgcxb`                    |
+   | 振动与冲击（万方）                              | `https://apps.wanfangdata.com.cn/perios/rss/zdycj`                     |
+   | 中国公路学报（万方）                            | `https://apps.wanfangdata.com.cn/perios/rss/zgglxb`                    |
+   | 中国铁道科学（万方）                            | `https://apps.wanfangdata.com.cn/perios/rss/zgtdkx`                    |
+   | J. Bridge Engineering（ASCE）                   | `https://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jbenf2` |
+   | J. Structural Engineering（ASCE）               | `https://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jsendh` |
+   | Engineering Structures（Elsevier）              | `https://rss.sciencedirect.com/publication/science/01410296`           |
+   | Structures（Elsevier）                          | `https://rss.sciencedirect.com/publication/science/23520124`           |
+   | Thin-Walled Structures（Elsevier）              | `https://rss.sciencedirect.com/publication/science/02638231`           |
+   | J. Sound and Vibration（Elsevier）              | `https://rss.sciencedirect.com/publication/science/0022460X`           |
+   | Structure and Infrastructure Engineering（T&F） | `https://www.tandfonline.com/feed/rss/nsie20`                          |
 
    新增其他期刊：万方期刊主页的 RSS 链接替换期刊代码即可；Elsevier 把期刊 ISSN 去掉横线拼入 `https://rss.sciencedirect.com/publication/science/<ISSN>`；ASCE / T&F 在期刊页面找 RSS 图标复制链接。
 

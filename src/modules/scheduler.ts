@@ -5,13 +5,11 @@ const STARTUP_DELAY_MS = 30_000;
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // check once per hour
 
 /**
- * Start the auto-run loop when enabled. The loop exits when the plugin
- * shuts down (addon.data.alive becomes false).
+ * Always start the check loop on startup. The loop re-reads
+ * autoRun.enable every cycle, so toggling the preference mid-session
+ * (including enabling it) takes effect immediately without a restart.
  */
 export function initScheduler(): void {
-  if (!getPrefAny("autoRun.enable")) {
-    return;
-  }
   void scheduleLoop();
 }
 
