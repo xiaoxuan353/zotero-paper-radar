@@ -1,0 +1,13 @@
+startup-begin = Paper Radar is loading
+startup-finish = Paper Radar is ready
+prefs-title = Paper Radar
+menu-tools-radar = Paper Radar
+menu-tools-runnow = Fetch & Evaluate Now
+menu-tools-openprefs = Settings…
+progress-fetching = Fetching journal RSS feeds…
+progress-collect = { $count } new papers found, evaluating…
+progress-evaluating = Evaluating ({ $done }/{ $total }): { $title }
+progress-done = Done: { $evaluated } evaluated, { $saved } saved (high { $high } / mid { $mid }), { $low } low-relevance skipped
+progress-none = No unprocessed new papers in the last { $days } days
+progress-nokey = LLM API Key is not configured. Please set it in plugin preferences.
+progress-running = A fetch task is already running, please wait

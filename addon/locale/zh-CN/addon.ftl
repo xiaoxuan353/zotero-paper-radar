@@ -1,0 +1,13 @@
+startup-begin = 论文雷达加载中
+startup-finish = 论文雷达已就绪
+prefs-title = 论文雷达 Paper Radar
+menu-tools-radar = 论文雷达
+menu-tools-runnow = 立即抓取评估
+menu-tools-openprefs = 设置…
+progress-fetching = 正在抓取期刊订阅源…
+progress-collect = 共 { $count } 篇未处理新论文，开始并发评估…
+progress-evaluating = 正在评估（{ $done }/{ $total }）：{ $title }
+progress-done = 本轮完成：评估 { $evaluated } 篇，入库 { $saved } 篇（高 { $high } / 中 { $mid }），跳过低相关 { $low } 篇
+progress-none = 近 { $days } 天没有发现未处理的新论文
+progress-nokey = 尚未配置大模型 API Key，请先在插件设置中填写
+progress-running = 已有抓取任务在运行中，请稍候
