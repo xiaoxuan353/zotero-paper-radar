@@ -2,6 +2,7 @@ import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPrefAny, setPrefAny } from "./config";
 import { generateCriteria, testConnection } from "./llm";
+import { probeJournalIssn } from "./crossref";
 import { runPipeline } from "./pipeline";
 
 function prefpaneId(key: string): string {
@@ -43,13 +44,27 @@ export function registerPrefsScripts(win: Window): void {
   bindText(win, "collection-name", "collection.name");
   bindText(win, "tags-research", "tags.research");
   bindNumber(win, "autorun-interval", "autoRun.intervalHours");
-  bindMultiline(win, "feeds-list", "feeds.list");
-  bindMultiline(win, "research-direction", "research.direction");
-  bindMultiline(win, "research-criteria", "research.criteria");
+  bindText(win, "feeds-list", "feeds.list");
+  bindText(win, "journals-list", "feed.journals");
+  bindText(win, "research-direction", "research.direction");
+  bindText(win, "research-criteria", "research.criteria");
   bindCheckbox(win, "autorun-enable", "autoRun.enable");
+  bindCheckbox(win, "crossref-enable", "feed.crossrefEnable");
+  bindNumber(win, "crossref-rows", "feed.crossrefRows");
+  bindHelp(
+    win,
+    "feeds-help",
+    "https://github.com/xiaoxuan353/zotero-paper-radar#rss",
+  );
+  bindHelp(
+    win,
+    "journals-help",
+    "https://github.com/xiaoxuan353/zotero-paper-radar#crossref",
+  );
 
   bindLlmTestButton(win);
   bindCriteriaGenerateButton(win);
+  bindCrossrefTestButton(win);
 
   queryEl(win, "run-now")?.addEventListener("click", () => {
     void runPipeline();
@@ -78,6 +93,76 @@ function bindLlmTestButton(win: Window): void {
     button.disabled = false;
     resultEl.style.color = result.ok ? "green" : "red";
     resultEl.textContent = `${getString(result.ok ? "pref-llm-test-ok" : "pref-llm-test-fail")} ${result.message}`;
+  });
+}
+
+/**
+ * Probe every journal currently typed in the Crossref list (from the textarea
+ * directly, so unsaved edits count) and report which ISSNs are invalid.
+ */
+function bindCrossrefTestButton(win: Window): void {
+  const button = queryEl(win, "journals-test");
+  const resultEl = queryEl(win, "journals-test-result");
+  if (!button || !resultEl) {
+    return;
+  }
+  button.addEventListener("click", async () => {
+    const text = String(queryEl(win, "journals-list")?.value || "");
+    const lines = text
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      resultEl.style.color = "red";
+      resultEl.textContent = getString("pref-crossref-test-empty");
+      return;
+    }
+    button.disabled = true;
+    resultEl.style.color = "gray";
+    resultEl.textContent = getString("pref-crossref-test-waiting");
+    try {
+      // Probe with low concurrency: Crossref rate-limits unauthenticated
+      // bursts (429). Sequential-ish probing keeps valid journals from being
+      // misreported as invalid. Each probe also retries transient 429/5xx.
+      let cursor = 0;
+      const results: Awaited<ReturnType<typeof probeJournalIssn>>[] = [];
+      const concurrency = 2;
+      const workers = Array.from(
+        { length: Math.min(concurrency, lines.length) },
+        async () => {
+          while (cursor < lines.length) {
+            const line = lines[cursor++];
+            const [issn, ...rest] = line.split("|");
+            const name = rest.join("|").trim() || issn;
+            results.push(
+              await probeJournalIssn(String(issn || "").trim(), name),
+            );
+          }
+        },
+      );
+      await Promise.all(workers);
+      const failed = results.filter((r) => !r.ok);
+      resultEl.style.color = failed.length === 0 ? "green" : "red";
+      if (failed.length === 0) {
+        resultEl.textContent = getString("pref-crossref-test-ok", {
+          args: { ok: results.length },
+        });
+      } else {
+        const summary = failed
+          .map((f) => `${f.name}（${f.message}）`)
+          .join("；");
+        resultEl.textContent = getString("pref-crossref-test-fail", {
+          args: { count: failed.length, names: summary },
+        });
+      }
+    } catch (err) {
+      resultEl.style.color = "red";
+      resultEl.textContent = getString("pref-crossref-test-fail", {
+        args: { count: 1, names: String(err) },
+      });
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 
@@ -132,15 +217,6 @@ function bindText(win: Window, id: string, prefKey: string): void {
   el.addEventListener("change", () => setPrefAny(prefKey, el.value));
 }
 
-function bindMultiline(win: Window, id: string, prefKey: string): void {
-  const el = queryEl(win, id);
-  if (!el) {
-    return;
-  }
-  el.value = String(getPrefAny(prefKey) ?? "");
-  el.addEventListener("change", () => setPrefAny(prefKey, el.value));
-}
-
 function bindNumber(win: Window, id: string, prefKey: string): void {
   const el = queryEl(win, id);
   if (!el) {
@@ -164,4 +240,24 @@ function bindCheckbox(win: Window, id: string, prefKey: string): void {
   // HTML checkbox fires "change"; XUL checkbox fires "command".
   el.addEventListener("change", () => setPrefAny(prefKey, el.checked));
   el.addEventListener("command", () => setPrefAny(prefKey, el.checked));
+}
+
+/**
+ * Bind a help link to open an external help page (README section) in the
+ * default browser. Uses Zotero.launchURL which is available on 6/7/8/9.
+ */
+function bindHelp(win: Window, id: string, url: string): void {
+  const link = queryEl(win, id);
+  if (!link) {
+    return;
+  }
+  link.addEventListener("click", (e: Event) => {
+    e.preventDefault();
+    try {
+      Zotero.launchURL(url);
+    } catch (err) {
+      // Fallback for older Zotero where launchURL is not exposed.
+      win.alert(String(err));
+    }
+  });
 }

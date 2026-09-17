@@ -14,6 +14,9 @@ declare namespace _ZoteroTypes {
       "research.direction": string;
       "research.criteria": string;
       "feeds.list": string;
+      "feed.crossrefEnable": boolean;
+      "feed.crossrefRows": number;
+      "feed.journals": string;
       "fetch.daysLimit": number;
       "fetch.workers": number;
       "collection.name": string;

@@ -1,7 +1,7 @@
 {
   "name": "zotero-paper-radar",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Paper Radar (论文雷达): monitor journal RSS feeds, AI-filter papers by research direction, and save high-value papers into Zotero with AI review notes.",
   "config": {
     "addonName": "Paper Radar",

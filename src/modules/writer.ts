@@ -68,6 +68,10 @@ export async function savePaper(
     const item = new Zotero.Item("journalArticle");
     item.libraryID = libId;
     item.setField("title", entry.title);
+    const creators = parseCreators(entry.authors);
+    if (creators.length > 0) {
+      item.setCreators(creators);
+    }
     if (entry.abstract) {
       item.setField("abstractNote", entry.abstract);
     }
@@ -127,4 +131,45 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Convert plain author-name strings into Zotero creator objects.
+ * Crossref contributors are emitted as "Family, Given"; feed authors are
+ * typically "Given Family" — Zotero.Utilities.cleanAuthor handles both.
+ * Falls back to a last-name-only creator rather than dropping the author.
+ */
+type CreatorLike = {
+  firstName: string;
+  lastName: string;
+  creatorType: "author";
+};
+
+function parseCreators(authors: string[]): CreatorLike[] {
+  const out: CreatorLike[] = [];
+  for (const name of authors) {
+    const clean = String(name || "").trim();
+    if (!clean) {
+      continue;
+    }
+    try {
+      // "Family, Given" (Crossref) -> mode 0; "Given Family" (feed) -> mode 1.
+      const c = Zotero.Utilities.cleanAuthor(
+        clean,
+        clean.includes(",") ? "0" : "1",
+      );
+      if (c && (c.lastName || c.firstName)) {
+        out.push({
+          firstName: c.firstName || "",
+          lastName: c.lastName || "",
+          creatorType: "author",
+        });
+        continue;
+      }
+    } catch {
+      // fall through to the last-resort creator below
+    }
+    out.push({ firstName: "", lastName: clean, creatorType: "author" });
+  }
+  return out;
 }

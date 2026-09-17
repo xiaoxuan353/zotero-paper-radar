@@ -3,6 +3,11 @@ import { config } from "../../package.json";
 /**
  * Paper Radar runtime configuration, read from plugin preferences.
  */
+export interface JournalSpec {
+  issn: string;
+  name: string;
+}
+
 export interface RadarConfig {
   baseUrl: string;
   /** Full chat-completions URL resolved from baseUrl. */
@@ -17,6 +22,12 @@ export interface RadarConfig {
   workers: number;
   collectionName: string;
   researchTag: string;
+  /** Whether Crossref-by-ISSN scanning is enabled. */
+  crossrefEnable: boolean;
+  /** Journals to scan via Crossref, each with ISSN and display name. */
+  crossrefJournals: JournalSpec[];
+  /** Number of recent works pulled per journal before date filtering. */
+  crossrefRows: number;
 }
 
 export function getPrefAny(key: string): any {
@@ -70,5 +81,22 @@ export function getConfig(): RadarConfig {
     ),
     collectionName: String(getPrefAny("collection.name") || "AI精选前沿论文"),
     researchTag: String(getPrefAny("tags.research") || ""),
+    crossrefEnable: Boolean(getPrefAny("feed.crossrefEnable")),
+    crossrefRows: Math.max(
+      1,
+      Math.min(1000, Number(getPrefAny("feed.crossrefRows")) || 200),
+    ),
+    crossrefJournals: String(getPrefAny("feed.journals") || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [issn, ...rest] = line.split("|");
+        return {
+          issn: String(issn || "").trim(),
+          name: rest.join("|").trim() || issn,
+        };
+      })
+      .filter((j) => /^\d{4}-?\d{3}[\dXx]$/.test(j.issn)),
   };
 }

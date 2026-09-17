@@ -30,7 +30,23 @@ pref(
 // RSS feeds, one URL per line.
 pref(
   "feeds.list",
-  "https://apps.wanfangdata.com.cn/perios/rss/gclx\nhttps://apps.wanfangdata.com.cn/perios/rss/gljtkj\nhttps://apps.wanfangdata.com.cn/perios/rss/gwql\nhttps://apps.wanfangdata.com.cn/perios/rss/tmgcxb\nhttps://apps.wanfangdata.com.cn/perios/rss/zdycj\nhttps://apps.wanfangdata.com.cn/perios/rss/zgglxb\nhttps://apps.wanfangdata.com.cn/perios/rss/zgtdkx\nhttps://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jbenf2\nhttps://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jsendh\nhttps://rss.sciencedirect.com/publication/science/01410296\nhttps://rss.sciencedirect.com/publication/science/23520124\nhttps://rss.sciencedirect.com/publication/science/02638231\nhttps://rss.sciencedirect.com/publication/science/0022460X\nhttps://www.tandfonline.com/feed/rss/nsie20",
+  "https://apps.wanfangdata.com.cn/perios/rss/gclx\nhttps://apps.wanfangdata.com.cn/perios/rss/gljtkj\nhttps://apps.wanfangdata.com.cn/perios/rss/gwql\nhttps://apps.wanfangdata.com.cn/perios/rss/tmgcxb\nhttps://apps.wanfangdata.com.cn/perios/rss/zdycj\nhttps://apps.wanfangdata.com.cn/perios/rss/zgglxb\nhttps://apps.wanfangdata.com.cn/perios/rss/zgtdkx\nhttps://apps.wanfangdata.com.cn/perios/rss/tdxb\nhttps://apps.wanfangdata.com.cn/perios/rss/zdgcxb\nhttps://apps.wanfangdata.com.cn/perios/rss/jzjgxb\nhttps://zgglxb.chd.edu.cn/CN/rss_zxly.xml\nhttps://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jbenf2\nhttps://ascelibrary.org/action/showFeed?type=etoc&feed=rss&jc=jsendh\nhttps://rss.sciencedirect.com/publication/science/01410296\nhttps://rss.sciencedirect.com/publication/science/23520124\nhttps://rss.sciencedirect.com/publication/science/02638231\nhttps://rss.sciencedirect.com/publication/science/0022460X\nhttps://www.tandfonline.com/feed/rss/nsie20",
+);
+
+// Crossref-by-ISSN scanning: covers journals that expose no RSS (e.g. SCHM) and
+// catches Ahead-of-Print articles earlier than the RSS etoc feeds. Runs in
+// parallel with the RSS feeds above; dedup is shared by DOI across both.
+pref("feed.crossrefEnable", true);
+
+// Safety cap on how many works Crossref may return per journal. The actual
+// recency window is applied server-side via filter=from-pub-date using
+// fetch.daysLimit, so this is only a ceiling (Crossref allows up to 1000).
+pref("feed.crossrefRows", 200);
+
+// Crossref journals, one "ISSN|名称" pair per line. ISSN has no hyphens.
+pref(
+  "feed.journals",
+  "1545-2263|Structural Control and Health Monitoring\n1084-0702|ASCE Journal of Bridge Engineering\n0733-9445|ASCE Journal of Structural Engineering\n0141-0296|Engineering Structures\n2352-0124|Structures\n0263-8231|Thin-Walled Structures\n0022-460X|Journal of Sound and Vibration\n1573-2479|Structure and Infrastructure Engineering\n0887-3828|ASCE J. Performance of Constructed Facilities\n2190-5452|J. Civil Structural Health Monitoring\n1569-8025|Structural Health Monitoring (SAGE)\n0143-974X|J. Constructional Steel Research\n1350-6307|Engineering Failure Analysis\n0167-4730|Structural Safety\n0098-8847|Earthquake Engineering & Structural Dynamics\n1570-761X|Bulletin of Earthquake Engineering\n0045-7949|Computers & Structures\n1369-4332|Advances in Structural Engineering",
 );
 
 // Fetch behavior.

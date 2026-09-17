@@ -14,6 +14,8 @@ export interface FeedEntry {
   published: Date | null;
   doi: string;
   feedUrl: string;
+  /** Author full names as found in the feed, best-effort. */
+  authors: string[];
 }
 
 /**
@@ -80,6 +82,7 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
     let abstract = "";
     let url = "";
     let dateStr = "";
+    let authors: string[] = [];
     if (isAtom) {
       abstract = cleanText(
         childText(node, "summary", ATOM_NS) ||
@@ -90,12 +93,14 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
       dateStr =
         childText(node, "published", ATOM_NS) ||
         childText(node, "updated", ATOM_NS);
+      authors = parseAtomAuthors(node);
     } else {
       abstract = cleanText(
         childText(node, "description") || childText(node, "description", DC_NS),
       );
       url = childText(node, "link") || childText(node, "guid");
       dateStr = childText(node, "pubDate") || childText(node, "date", DC_NS);
+      authors = parseRssAuthors(node);
     }
     const published = parseDate(dateStr);
     const doiMatch = `${title}\n${abstract}\n${url}`.match(DOI_RE);
@@ -106,6 +111,7 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
       published,
       doi: doiMatch ? sanitizeDoi(doiMatch[0]) : "",
       feedUrl,
+      authors,
     });
   }
   return entries;
@@ -116,6 +122,63 @@ function childText(parent: Element, tag: string, ns?: string): string {
     ? parent.getElementsByTagNameNS(ns, tag)[0]
     : parent.getElementsByTagName(tag)[0];
   return el?.textContent?.trim() || "";
+}
+
+function childTexts(parent: Element, tag: string, ns?: string): string[] {
+  const els: Element[] = ns
+    ? Array.from(parent.getElementsByTagNameNS(ns, tag) as any)
+    : Array.from(parent.getElementsByTagName(tag));
+  return els.map((el) => el?.textContent?.trim() || "").filter(Boolean);
+}
+
+function parseAtomAuthors(node: Element): string[] {
+  const names = childTexts(node, "name", ATOM_NS);
+  const out: string[] = [];
+  for (const n of names) {
+    out.push(...splitAuthors(n));
+  }
+  return out;
+}
+
+function parseRssAuthors(node: Element): string[] {
+  // dc:creator usually holds full names, one per element.
+  const dc = childTexts(node, "creator", DC_NS);
+  const authors: string[] = [];
+  for (const c of dc) {
+    authors.push(...splitAuthors(c));
+  }
+  // RSS 2.0 <author> is "email (Display Name)" — keep the display name.
+  for (const a of childTexts(node, "author")) {
+    const m = a.match(/\(([^)]+)\)/);
+    authors.push(m ? m[1].trim() : a.trim());
+  }
+  return dedupe(authors);
+}
+
+/**
+ * Split a field that may contain several authors separated by `;`
+ * (feeds usually list authors one-per-element or semi-colon separated).
+ * We deliberately do NOT split on commas, because western names use the
+ * "Family, Given" convention and would be broken apart.
+ */
+function splitAuthors(raw: string): string[] {
+  return raw
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function dedupe(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    const key = item.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+  return out;
 }
 
 /**

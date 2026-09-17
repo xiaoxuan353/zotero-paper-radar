@@ -3,7 +3,8 @@ import { getConfig, setPrefAny } from "./config";
 import { fetchFeed, makePaperId, withinDays } from "./rss";
 import type { FeedEntry } from "./rss";
 import { evaluatePaper } from "./llm";
-import { enrichFromCrossref } from "./crossref";
+import { enrichFromCrossref, scanJournalByIssn } from "./crossref";
+import type { JournalSpec } from "./config";
 import { loadProcessed, saveProcessed } from "./dedup";
 import { existsInLibrary, getOrCreateCollection, savePaper } from "./writer";
 
@@ -70,8 +71,54 @@ export async function runPipeline(): Promise<void> {
       }
     });
 
+    // Crossref-by-ISSN scanning: covers journals with no RSS and catches
+    // Ahead-of-Print earlier. Shares the same DOI-based dedup map above.
+    let crossrefFailures = 0;
+    if (cfg.crossrefEnable && cfg.crossrefJournals.length > 0) {
+      progress.changeLine({
+        text: getString("progress-crossref"),
+        progress: 0,
+      });
+      const crConcurrency = Math.min(5, cfg.crossrefJournals.length);
+      await runWithPool(
+        cfg.crossrefJournals,
+        crConcurrency,
+        async (journal) => {
+          const result = await scanJournalByIssn(
+            journal.issn,
+            journal.name,
+            cfg.crossrefRows,
+            cfg.daysLimit,
+          );
+          if (!result.ok) {
+            crossrefFailures++;
+            return;
+          }
+          for (const entry of result.entries) {
+            if (!entry.title) {
+              continue;
+            }
+            if (!withinDays(entry, cfg.daysLimit)) {
+              continue;
+            }
+            const id = makePaperId(entry);
+            if (processed[id]) {
+              continue;
+            }
+            if (!byId.has(id)) {
+              byId.set(id, entry);
+            }
+          }
+        },
+      );
+    }
+
     const entries = Array.from(byId.values());
     if (entries.length === 0) {
+      // No new papers this run: still count it as a completed run, otherwise
+      // autoRun.lastRun stays stale (0) and the scheduler triggers on every
+      // startup regardless of the configured interval.
+      setPrefAny("autoRun.lastRun", Date.now());
       progress.changeLine({
         text: getString("progress-none", { args: { days: cfg.daysLimit } }),
         progress: 100,
@@ -81,6 +128,17 @@ export async function runPipeline(): Promise<void> {
     }
     if (feedFailures > 0) {
       ztoolkit.log(`${feedFailures} feed(s) failed this run`);
+    }
+    if (cfg.crossrefEnable) {
+      const crTotal = cfg.crossrefJournals.length;
+      showPopup(
+        getString("progress-crossref-summary", {
+          args: {
+            ok: Math.max(0, crTotal - crossrefFailures),
+            fail: crossrefFailures,
+          },
+        }),
+      );
     }
     progress.changeLine({
       text: getString("progress-collect", { args: { count: entries.length } }),

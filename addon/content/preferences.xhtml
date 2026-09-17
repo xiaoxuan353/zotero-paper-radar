@@ -88,11 +88,68 @@
 
   <html:h3 data-l10n-id="pref-feeds-header"></html:h3>
   <html:label data-l10n-id="pref-feeds-label"></html:label>
+  <hbox align="center" style="gap: 8px">
+    <html:a
+      id="zotero-prefpane-__addonRef__-feeds-help"
+      href="#"
+      style="cursor: pointer; color: #0670c0"
+      data-l10n-id="pref-feeds-help"
+    ></html:a>
+  </hbox>
   <html:textarea
     id="zotero-prefpane-__addonRef__-feeds-list"
     rows="8"
     style="width: 100%; font-family: monospace"
   ></html:textarea>
+
+  <html:h3 data-l10n-id="pref-crossref-header"></html:h3>
+  <hbox align="center" style="gap: 6px">
+    <html:input
+      type="checkbox"
+      id="zotero-prefpane-__addonRef__-crossref-enable"
+    />
+    <html:label
+      for="zotero-prefpane-__addonRef__-crossref-enable"
+      data-l10n-id="pref-crossref-enable"
+    ></html:label>
+  </hbox>
+  <vbox>
+    <html:label
+      for="zotero-prefpane-__addonRef__-crossref-rows"
+      data-l10n-id="pref-crossref-rows"
+    ></html:label>
+    <html:input
+      type="number"
+      min="1"
+      max="1000"
+      id="zotero-prefpane-__addonRef__-crossref-rows"
+      style="width: 100px"
+    />
+  </vbox>
+  <html:label data-l10n-id="pref-crossref-journals-label"></html:label>
+  <hbox align="center" style="gap: 8px">
+    <html:a
+      id="zotero-prefpane-__addonRef__-journals-help"
+      href="#"
+      style="cursor: pointer; color: #0670c0"
+      data-l10n-id="pref-crossref-help"
+    ></html:a>
+  </hbox>
+  <html:textarea
+    id="zotero-prefpane-__addonRef__-journals-list"
+    rows="10"
+    style="width: 100%; font-family: monospace"
+  ></html:textarea>
+  <hbox align="center" style="gap: 10px">
+    <html:button
+      id="zotero-prefpane-__addonRef__-journals-test"
+      data-l10n-id="pref-crossref-test"
+    ></html:button>
+    <html:label
+      id="zotero-prefpane-__addonRef__-journals-test-result"
+      flex="1"
+    ></html:label>
+  </hbox>
 
   <html:h3 data-l10n-id="pref-research-header"></html:h3>
   <html:label data-l10n-id="pref-research-direction-label"></html:label>
