@@ -113,7 +113,30 @@ Crossref 是一个开放的学术论文元数据数据库，收录了几乎所�
 - **兜底没有 RSS 的期刊**：有些期刊不公开 RSS（如 _Structural Control and Health Monitoring_），仍能被 Crossref 扫到；
 - **抢先版更早到手**：很多文章先在线出版（Ahead-of-Print），稍后才进 RSS——Crossref 能提前抓到，并直接给出作者、卷期、页码等元数据。
 
-默认内置 18 本土木/桥梁方向的国外刊。要添加期刊，在列表里加一行 `ISSN|刊名`（刊名仅用于显示，可填中文）：
+默认内置 18 本土木/桥梁方向的国外刊：
+
+| 期刊                                                                   | ISSN        |
+| ---------------------------------------------------------------------- | ----------- |
+| Structural Control and Health Monitoring（结构控制与健康监测）         | `1545-2263` |
+| ASCE Journal of Bridge Engineering（ASCE 桥梁工程学报）                | `1084-0702` |
+| ASCE Journal of Structural Engineering（ASCE 结构工程学报）            | `0733-9445` |
+| Engineering Structures（工程结构）                                     | `0141-0296` |
+| Structures（结构）                                                     | `2352-0124` |
+| Thin-Walled Structures（薄壁结构）                                     | `0263-8231` |
+| Journal of Sound and Vibration（声与振动杂志）                         | `0022-460X` |
+| Structure and Infrastructure Engineering（结构与基础设施工程）         | `1573-2479` |
+| ASCE J. Performance of Constructed Facilities（ASCE 建筑设施性能学报） | `0887-3828` |
+| J. Civil Structural Health Monitoring（土木结构健康监测杂志）          | `2190-5452` |
+| Structural Health Monitoring (SAGE)（结构健康监测）                    | `1569-8025` |
+| J. Constructional Steel Research（建筑钢结构研究杂志）                 | `0143-974X` |
+| Engineering Failure Analysis（工程失效分析）                           | `1350-6307` |
+| Structural Safety（结构安全）                                          | `0167-4730` |
+| Earthquake Engineering & Structural Dynamics（地震工程与结构动力学）   | `0098-8847` |
+| Bulletin of Earthquake Engineering（地震工程通报）                     | `1570-761X` |
+| Computers & Structures（计算机与结构）                                 | `0045-7949` |
+| Advances in Structural Engineering（结构工程进展）                     | `1369-4332` |
+
+要添加期刊，在列表里加一行 `ISSN|刊名`（刊名仅用于显示，可填中文）：
 
 ```
 1545-2263|结构监测与健康维护
