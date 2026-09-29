@@ -158,10 +158,17 @@ export async function runPipeline(): Promise<void> {
       if (review) {
         if (review.level === "high" || review.level === "mid") {
           hits.push({ entry, review: review.text, level: review.level });
-        } else {
-          // Low/unknown relevance: remember and skip.
+        } else if (review.level === "low") {
+          // Confirmed low relevance: remember and skip.
           lowCount++;
           processed[makePaperId(entry)] = Date.now();
+        } else {
+          // review.level === "unknown": format parsing failed.
+          // Do NOT mark as processed so the paper is retried on next run,
+          // avoiding false-negative permanent dropping of relevant papers.
+          ztoolkit.log(
+            `Unrecognized review rating for "${entry.title}": ${review.text.slice(0, 60)}`,
+          );
         }
       }
       // review === null means evaluation error: leave unmarked so the

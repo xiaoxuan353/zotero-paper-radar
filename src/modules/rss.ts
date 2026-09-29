@@ -16,6 +16,18 @@ export interface FeedEntry {
   feedUrl: string;
   /** Author full names as found in the feed, best-effort. */
   authors: string[];
+  /** Journal title extracted from feed channel metadata. */
+  journalTitle?: string;
+}
+
+/**
+ * Strip common Chinese online-first / pre-publication prefixes
+ * (e.g. 【网络首发】, [优先出版], etc.) for consistent deduplication.
+ */
+export function cleanTitlePrefix(title: string): string {
+  return (title || "")
+    .replace(/^[【[(（](网络首发|优先出版|最新录用|首发)[】\])）]\s*/i, "")
+    .trim();
 }
 
 /**
@@ -26,7 +38,7 @@ export function makePaperId(entry: FeedEntry): string {
   if (entry.doi) {
     return `doi:${entry.doi}`;
   }
-  const title = entry.title.trim().toLowerCase();
+  const title = cleanTitlePrefix(entry.title).toLowerCase();
   if (title) {
     return `title:${title}`;
   }
@@ -73,6 +85,17 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
     ) as Element[];
   }
 
+  let journalTitle = "";
+  const root = doc.documentElement;
+  if (root) {
+    if (isAtom) {
+      journalTitle = cleanText(childText(root, "title", ATOM_NS));
+    } else {
+      const channel = doc.getElementsByTagName("channel")[0] || root;
+      journalTitle = cleanText(childText(channel, "title"));
+    }
+  }
+
   const entries: FeedEntry[] = [];
   for (const node of nodes) {
     const title = cleanText(childText(node, "title"));
@@ -112,6 +135,7 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
       doi: doiMatch ? sanitizeDoi(doiMatch[0]) : "",
       feedUrl,
       authors,
+      journalTitle,
     });
   }
   return entries;
@@ -147,23 +171,24 @@ function parseRssAuthors(node: Element): string[] {
   for (const c of dc) {
     authors.push(...splitAuthors(c));
   }
-  // RSS 2.0 <author> is "email (Display Name)" — keep the display name.
+  // RSS 2.0 <author> is "email (Display Name)" or plain author strings separated by 、 / ;
   for (const a of childTexts(node, "author")) {
     const m = a.match(/\(([^)]+)\)/);
-    authors.push(m ? m[1].trim() : a.trim());
+    const text = m ? m[1].trim() : a.trim();
+    authors.push(...splitAuthors(text));
   }
   return dedupe(authors);
 }
 
 /**
- * Split a field that may contain several authors separated by `;`
- * (feeds usually list authors one-per-element or semi-colon separated).
- * We deliberately do NOT split on commas, because western names use the
+ * Split a field that may contain several authors separated by `;`, `；`, or `、`
+ * (Chinese enumeration comma).
+ * We deliberately do NOT split on half-width commas `,`, because western names use the
  * "Family, Given" convention and would be broken apart.
  */
 function splitAuthors(raw: string): string[] {
   return raw
-    .split(";")
+    .split(/[;；、]/)
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -209,4 +234,60 @@ function parseDate(dateStr: string): Date | null {
 
 function sanitizeDoi(doi: string): string {
   return doi.replace(/[.;)\]]+$/, "");
+}
+
+export interface FeedProbeResult {
+  url: string;
+  title: string;
+  ok: boolean;
+  count: number;
+  latestDate?: string;
+  message: string;
+}
+
+/**
+ * Probe whether an RSS / Atom feed URL is accessible and parseable.
+ */
+export async function probeFeed(feedUrl: string): Promise<FeedProbeResult> {
+  try {
+    const resp = await Zotero.HTTP.request("GET", feedUrl, {
+      responseType: "text",
+      timeout: 15000,
+      headers: BROWSER_HEADERS,
+    });
+    const text = resp.responseText || "";
+    const entries = parseFeed(text, feedUrl);
+    if (entries.length === 0) {
+      return {
+        url: feedUrl,
+        title: feedUrl,
+        ok: false,
+        count: 0,
+        message: "未能解析到文章（XML 为空或非有效 RSS/Atom 格式）",
+      };
+    }
+    const journalTitle = entries[0]?.journalTitle || feedUrl;
+    const latest = entries[0]?.published;
+    const dateStr = latest
+      ? `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, "0")}-${String(latest.getDate()).padStart(2, "0")}`
+      : "无发布日期";
+    return {
+      url: feedUrl,
+      title: journalTitle,
+      ok: true,
+      count: entries.length,
+      latestDate: dateStr,
+      message: `${journalTitle}（${entries.length} 篇，最新：${dateStr}）`,
+    };
+  } catch (err: any) {
+    const status = err?.xhr?.status ?? err?.status ?? 0;
+    const reason = status ? `HTTP ${status}` : String(err?.message || err);
+    return {
+      url: feedUrl,
+      title: feedUrl,
+      ok: false,
+      count: 0,
+      message: `${feedUrl}（${reason}）`,
+    };
+  }
 }

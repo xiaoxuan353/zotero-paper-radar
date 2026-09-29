@@ -29,7 +29,7 @@ Crossref ──┘                                          └─▶ Zotero 账
 - 📡 双数据源：RSS 订阅 + Crossref 按 ISSN 扫描，互补覆盖中英文期刊
 - ⏰ 自动运行：可设定抓取间隔（默认 7 天），后台按周期自动跑
 - ✍️ 研究方向自由填写，评估提示词可一键「AI 生成」
-- 🧪 内置自检：「测试连接」验证大模型、「测试所有期刊是否有效」校验 Crossref 的 ISSN
+- 🧪 内置自检：「测试连接」验证大模型、「测试所有 RSS 订阅源」排查死链、「测试所有期刊是否有效」校验 Crossref 的 ISSN
 - 🧹 跨来源 DOI 去重、时间窗口过滤，不重复评估、不重复入库
 
 ## 安装
@@ -69,7 +69,7 @@ npm run build
 3. 点 **「AI 生成评估要求」**：调用你的大模型，自动生成与研究方向匹配的高/中/低分档判定标准（也可手工修改，但第 1 条输出格式规则为程序解析所需，勿动）；
 4. **期刊来源**：配置 RSS 订阅源和 Crossref 期刊扫描，两者可同时启用，至少配一种。详见下方 [RSS 订阅源](#rss) 与 [Crossref 期刊扫描](#crossref)；
 5. **抓取与入库设置**：抓取时间窗口（默认 9 天）、评估并发数（1~10）、目标分类名称、研究方向标签；
-6. **自动运行**（可选）：勾选「启用自动抓取评估」并设定间隔小时数（默认 168 小时 = 7 天）。
+6. **自动运行**（可选）：勾选「启用自动抓取评估」并设定间隔天数（默认 7 天）。
 
 配置完成后，点面板底部的 **「立即抓取评估」**（或菜单 `工具 → 论文雷达 → 立即抓取评估`）即可跑一次，进度与结果会以弹窗提示。
 
@@ -100,9 +100,17 @@ RSS / Atom 是期刊官网或数据库提供的「新文章自动通知」链接
 | J. Sound and Vibration（Elsevier）              | `https://rss.sciencedirect.com/publication/science/0022460X`           |
 | Structure and Infrastructure Engineering（T&F） | `https://www.tandfonline.com/feed/rss/nsie20`                          |
 
-新增其他期刊：万方期刊主页的 RSS 链接替换期刊代码即可；Elsevier 把期刊 ISSN 去掉横线拼入 `https://rss.sciencedirect.com/publication/science/<ISSN>`；ASCE / T&F 在期刊页面找 RSS 图标复制链接。
+新增其他期刊：
 
-> 中文期刊建议用万方 RSS（更新更及时、格式更统一）。若某刊根本不提供 RSS，请改用下方的 Crossref 期刊扫描来覆盖。
+- **万方 RSS**：万方期刊主页的 RSS 链接替换期刊代码即可（`https://apps.wanfangdata.com.cn/perios/rss/<期刊拼音代码>`）；
+- **期刊官网（勤云/玛格泰克系统）**：国内多数高校学报及顶刊（如中国公路学报）采用该系统，在其官网域名后加上 `/CN/rss_zxly.xml` 即可获取最前沿的「最新录用 / 网络首发」源，录用即上，时效极快；
+- **中国知网（CNKI）网络首发**：可配合 [RSSHub](https://docs.rsshub.app/routes/journal#zhong-guo-zhi-wang-cnki) 的 `/cnki/journals/:pcode` 路由，填入知网期刊代码直接生成网络首发订阅流；
+- **国外期刊**：Elsevier 把期刊 ISSN 去掉横线拼入 `https://rss.sciencedirect.com/publication/science/<ISSN>`；ASCE / T&F 在期刊页面找 RSS 图标复制链接。
+
+> 💡 **元数据安全与补全提示**：
+>
+> 1. 中文期刊没有 DOI 时，插件已内置防污染保护机制，自动跳过 Crossref 跨库模糊检索，确保入库条目不受无关文献污染；
+> 2. 入库时自动从 Feed 频道提取中文期刊名（如《工程力学》），入库后若需进一步补全更详细的中文章节/基金信息，可配合 Zotero 社区的 **Jasminum（茉莉花）** 等插件右键一键抓取知网元数据。
 
 ### Crossref 期刊扫描
 

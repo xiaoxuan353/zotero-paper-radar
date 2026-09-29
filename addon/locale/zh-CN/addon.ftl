@@ -27,4 +27,21 @@ progress-evaluating = 正在评估（{ $done }/{ $total }）：{ $title }
 progress-done = 本轮完成：评估 { $evaluated } 篇，入库 { $saved } 篇（高 { $high } / 中 { $mid }），跳过低相关 { $low } 篇
 progress-none = 近 { $days } 天没有发现未处理的新论文
 progress-nokey = 尚未配置大模型 API Key，请先在插件设置中填写
-progress-running = 已有抓取任务在运行中，请稍候
+progress-running = 已有抓取/评估任务在运行中，请稍候
+
+menu-item-batch-eval = 论文雷达
+menu-collection-batch-eval = 论文雷达
+progress-batch-start = 开始批量研判 { $total } 篇文献（跳过已研判 { $skipped } 篇）…
+progress-batch-evaluating = 正在 AI 研判（{ $done }/{ $total }）：{ $title }
+progress-batch-done = 批量研判完成！已处理 { $done } 篇（高 { $high } / 中 { $mid } / 低 { $low }），跳过已研判 { $skipped } 篇
+progress-batch-all-evaluated = 所选 { $count } 篇文献均已完成研判（按住 Shift 可强制重新研判）
+progress-batch-no-items = 未找到可研判的文献条目
+
+menu-import-filter = 导入并 AI 筛选文件 (.ris / .enw / .bib)…
+menu-collection-import-filter = 导入并 AI 筛选到此分类…
+filepicker-title = 选择文献数据文件 (.ris / .enw / .bib)
+progress-import-filter-start = 正在对文件中的 { $total } 篇文献进行内存 AI 预审…
+progress-import-filter-evaluating = 内存预审中（{ $done }/{ $total }）：{ $title }
+progress-import-filter-done = 内存预审完成！已精选入库 { $saved } 篇（高 { $high } / 中 { $mid }），直接过滤抛弃 { $discarded } 篇无关文献，文库零污染！
+progress-import-filter-nofile = 未选择任何文件
+progress-import-filter-empty = 文件为空或未解析到有效文献记录

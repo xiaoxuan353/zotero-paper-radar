@@ -24,6 +24,14 @@ export async function evaluatePaper(
   abstract: string,
   retries = 4,
 ): Promise<ReviewResult | null> {
+  // Newly-accepted / online-first items often carry no abstract. Sending an
+  // empty field makes the model invent content, so hand it an explicit note
+  // telling it to judge from the title alone.
+  const cleanAbstract = abstract.trim();
+  const abstractDisplay = cleanAbstract
+    ? cleanAbstract
+    : "（注：该论文为期刊最新录用/网络首发阶段，暂未公布摘要，请严格依据论文标题及相关研究方向进行专业研判）";
+
   const prompt = [
     "你是一位学术论文审稿与领域分析专家。",
     "请严格根据以下论文标题与摘要，结合预定义的核心研究方向与分类标准，用中文进行精准研判：",
@@ -33,7 +41,7 @@ export async function evaluatePaper(
     cfg.criteria,
     "",
     `Title: ${title}`,
-    `Abstract: ${abstract}`,
+    `Abstract: ${abstractDisplay}`,
   ].join("\n");
 
   const body = JSON.stringify({
@@ -185,7 +193,13 @@ export async function generateCriteria(
  * Parse the mandatory first line 【相关度：高/中/低】 out of the review text.
  */
 export function parseReview(text: string): ReviewResult {
-  const match = text.match(/【相关度[：:]\s*([高中低])】/);
+  // 1. Try canonical pattern: 【相关度：高】 or 【相关度: 高】
+  let match = text.match(/【相关度[：:]\s*([高中低])】/);
+  if (!match) {
+    // 2. Tolerant fallback for model output variations like:
+    // 【相关度】：高, 【相关度】：【高】, 相关度：高, **相关度：高**, etc.
+    match = text.match(/【?相关度】?[：:]\s*【?([高中低])】?/);
+  }
   const levelMap: Record<string, ReviewLevel> = {
     高: "high",
     中: "mid",

@@ -5,6 +5,7 @@ export interface EnrichedMeta {
   issue?: string;
   pages?: string;
   date?: string;
+  authors?: string[];
 }
 
 /**
@@ -15,6 +16,13 @@ export async function enrichFromCrossref(
   title: string,
   doi: string,
 ): Promise<EnrichedMeta> {
+  // Chinese domestic journals are not reliably indexed in Crossref.
+  // Fuzzy title queries against Crossref for Chinese titles return false positives
+  // (e.g. assigning economics metadata to civil engineering papers).
+  if (!doi && /[\u4e00-\u9fa5]/.test(title)) {
+    return {};
+  }
+
   const url = doi
     ? `https://api.crossref.org/works/${encodeURIComponent(doi)}`
     : `https://api.crossref.org/works?query.title=${encodeURIComponent(title)}&rows=1`;
@@ -25,7 +33,17 @@ export async function enrichFromCrossref(
     });
     let msg = (resp.response as any)?.message;
     if (Array.isArray(msg?.items) && msg.items.length > 0) {
-      msg = msg.items[0];
+      const candidate = msg.items[0];
+      const candTitle = firstOrString(candidate?.title);
+      if (!isTitleSimilar(title, candTitle)) {
+        ztoolkit.log(
+          `Crossref title mismatch: "${title}" vs "${candTitle}", skipping enrichment`,
+        );
+        return {};
+      }
+      msg = candidate;
+    } else if (!doi) {
+      return {};
     }
     const out: EnrichedMeta = {};
     if (msg?.DOI) {
@@ -49,6 +67,10 @@ export async function enrichFromCrossref(
       msg?.["published-online"]?.["date-parts"]?.[0];
     if (Array.isArray(dateParts) && dateParts.length > 0) {
       out.date = dateParts.map(String).join("-");
+    }
+    const authors = parseCrossrefAuthors(msg);
+    if (authors.length > 0) {
+      out.authors = authors;
     }
     return out;
   } catch (err) {
@@ -75,6 +97,8 @@ export interface ScanEntry {
   feedUrl: string;
   /** Author names, best-effort from Crossref author[] (given + family). */
   authors: string[];
+  /** Journal display name. */
+  journalTitle?: string;
 }
 
 const CROSSREF_BASE = "https://api.crossref.org/journals";
@@ -139,6 +163,7 @@ export async function scanJournalByIssn(
           doi,
           feedUrl: name,
           authors: parseCrossrefAuthors(item),
+          journalTitle: name,
         });
       }
       return { entries, ok: true };
@@ -238,6 +263,36 @@ function firstOrString(v: any): string {
     return String(v[0] || "").trim();
   }
   return String(v || "").trim();
+}
+
+/**
+ * Check if candidate title from Crossref fuzzy query is sufficiently similar
+ * to the query title, preventing spurious matches from corrupting metadata.
+ */
+function isTitleSimilar(t1: string, t2: string): boolean {
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  const n1 = normalize(t1);
+  const n2 = normalize(t2);
+  if (!n1 || !n2) {
+    return false;
+  }
+  if (n1 === n2 || n1.includes(n2) || n2.includes(n1)) {
+    return true;
+  }
+  const w1 = new Set(n1.split(/\s+/));
+  const w2 = new Set(n2.split(/\s+/));
+  let intersect = 0;
+  for (const w of w1) {
+    if (w2.has(w)) {
+      intersect++;
+    }
+  }
+  const union = new Set([...w1, ...w2]).size;
+  return union > 0 && intersect / union >= 0.6;
 }
 
 function parseCrossrefAuthors(work: any): string[] {

@@ -1,5 +1,6 @@
 import type { EnrichedMeta } from "./crossref";
 import type { FeedEntry } from "./rss";
+import { cleanTitlePrefix } from "./rss";
 import type { ReviewLevel } from "./llm";
 
 /**
@@ -39,7 +40,8 @@ export async function existsInLibrary(
     if (doi) {
       s.addCondition("DOI", "is", doi);
     } else if (title) {
-      s.addCondition("title", "is", title);
+      const clean = cleanTitlePrefix(title);
+      s.addCondition("title", "is", clean || title);
     } else {
       return false;
     }
@@ -67,8 +69,13 @@ export async function savePaper(
     const libId = Zotero.Libraries.userLibraryID;
     const item = new Zotero.Item("journalArticle");
     item.libraryID = libId;
-    item.setField("title", entry.title);
-    const creators = parseCreators(entry.authors);
+    const cleanTitle = cleanTitlePrefix(entry.title);
+    item.setField("title", cleanTitle || entry.title);
+    const authors =
+      entry.authors && entry.authors.length > 0
+        ? entry.authors
+        : meta.authors || [];
+    const creators = parseCreators(authors);
     if (creators.length > 0) {
       item.setCreators(creators);
     }
@@ -82,8 +89,9 @@ export async function savePaper(
     if (doi) {
       item.setField("DOI", doi);
     }
-    if (meta.publicationTitle) {
-      item.setField("publicationTitle", meta.publicationTitle);
+    const publicationTitle = meta.publicationTitle || entry.journalTitle;
+    if (publicationTitle) {
+      item.setField("publicationTitle", publicationTitle);
     }
     if (meta.volume) {
       item.setField("volume", meta.volume);
@@ -94,8 +102,10 @@ export async function savePaper(
     if (meta.pages) {
       item.setField("pages", meta.pages);
     }
-    if (meta.date) {
-      item.setField("date", meta.date);
+    const dateStr =
+      meta.date || (entry.published ? formatDate(entry.published) : "");
+    if (dateStr) {
+      item.setField("date", dateStr);
     }
     if (collectionKey) {
       item.setCollections([collectionKey]);
@@ -145,7 +155,7 @@ type CreatorLike = {
   creatorType: "author";
 };
 
-function parseCreators(authors: string[]): CreatorLike[] {
+export function parseCreators(authors: string[]): CreatorLike[] {
   const out: CreatorLike[] = [];
   for (const name of authors) {
     const clean = String(name || "").trim();
@@ -153,10 +163,10 @@ function parseCreators(authors: string[]): CreatorLike[] {
       continue;
     }
     try {
-      // "Family, Given" (Crossref) -> mode 0; "Given Family" (feed) -> mode 1.
       const c = Zotero.Utilities.cleanAuthor(
         clean,
-        clean.includes(",") ? "0" : "1",
+        "author",
+        clean.includes(","),
       );
       if (c && (c.lastName || c.firstName)) {
         out.push({
@@ -172,4 +182,11 @@ function parseCreators(authors: string[]): CreatorLike[] {
     out.push({ firstName: "", lastName: clean, creatorType: "author" });
   }
   return out;
+}
+
+function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }

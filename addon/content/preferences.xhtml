@@ -101,6 +101,16 @@
     rows="8"
     style="width: 100%; font-family: monospace"
   ></html:textarea>
+  <hbox align="center" style="gap: 10px">
+    <html:button
+      id="zotero-prefpane-__addonRef__-feeds-test"
+      data-l10n-id="pref-feeds-test"
+    ></html:button>
+    <html:label
+      id="zotero-prefpane-__addonRef__-feeds-test-result"
+      flex="1"
+    ></html:label>
+  </hbox>
 
   <html:h3 data-l10n-id="pref-crossref-header"></html:h3>
   <hbox align="center" style="gap: 6px">
@@ -197,6 +207,17 @@
     </vbox>
     <vbox flex="1">
       <html:label
+        for="zotero-prefpane-__addonRef__-collection-thesis-name"
+        data-l10n-id="pref-collection-thesis-name"
+      ></html:label>
+      <html:input
+        type="text"
+        id="zotero-prefpane-__addonRef__-collection-thesis-name"
+        style="width: 100%"
+      />
+    </vbox>
+    <vbox flex="1">
+      <html:label
         for="zotero-prefpane-__addonRef__-tags-research"
         data-l10n-id="pref-tags-research"
       ></html:label>
@@ -227,7 +248,7 @@
     <html:input
       type="number"
       min="1"
-      max="720"
+      max="30"
       id="zotero-prefpane-__addonRef__-autorun-interval"
       style="width: 100px"
     />

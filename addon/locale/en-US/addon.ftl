@@ -27,4 +27,21 @@ progress-evaluating = Evaluating ({ $done }/{ $total }): { $title }
 progress-done = Done: { $evaluated } evaluated, { $saved } saved (high { $high } / mid { $mid }), { $low } low-relevance skipped
 progress-none = No unprocessed new papers in the last { $days } days
 progress-nokey = LLM API Key is not configured. Please set it in plugin preferences.
-progress-running = A fetch task is already running, please wait
+progress-running = A fetch/evaluation task is already running, please wait
+
+menu-item-batch-eval = Paper Radar
+menu-collection-batch-eval = Paper Radar
+progress-batch-start = Starting batch evaluation of { $total } items (skipping { $skipped } evaluated)…
+progress-batch-evaluating = Evaluating ({ $done }/{ $total }): { $title }
+progress-batch-done = Batch evaluation complete! Processed { $done } (High { $high } / Mid { $mid } / Low { $low }), skipped { $skipped }
+progress-batch-all-evaluated = All { $count } selected items have already been evaluated (Hold Shift to force re-evaluation)
+progress-batch-no-items = No regular items found to evaluate
+
+menu-import-filter = Import & AI Filter File (.ris / .enw / .bib)…
+menu-collection-import-filter = Import & AI Filter into Collection…
+filepicker-title = Select Bibliographic File (.ris / .enw / .bib)
+progress-import-filter-start = Performing in-memory AI screening on { $total } items from file…
+progress-import-filter-evaluating = Screening ({ $done }/{ $total }): { $title }
+progress-import-filter-done = In-memory screening done! Saved { $saved } items (High { $high } / Mid { $mid }), discarded { $discarded } irrelevant items. Zero library pollution!
+progress-import-filter-nofile = No file selected
+progress-import-filter-empty = File is empty or no valid bibliographic records found

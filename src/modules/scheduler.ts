@@ -28,7 +28,11 @@ async function scheduleLoop(): Promise<void> {
 }
 
 function isDue(): boolean {
+  const daysPref = getPrefAny("autoRun.intervalDays");
   const intervalMs =
-    Math.max(1, Number(getPrefAny("autoRun.intervalHours")) || 168) * 3600_000;
+    daysPref !== undefined && daysPref !== null
+      ? Math.max(1, Number(daysPref) || 7) * 86400_000
+      : Math.max(1, Number(getPrefAny("autoRun.intervalHours")) || 168) *
+        3600_000;
   return Date.now() - Number(getPrefAny("autoRun.lastRun") || 0) >= intervalMs;
 }

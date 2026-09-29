@@ -21,6 +21,7 @@ export interface RadarConfig {
   daysLimit: number;
   workers: number;
   collectionName: string;
+  collectionThesisName: string;
   researchTag: string;
   /** Whether Crossref-by-ISSN scanning is enabled. */
   crossrefEnable: boolean;
@@ -80,6 +81,9 @@ export function getConfig(): RadarConfig {
       Math.max(1, Number(getPrefAny("fetch.workers")) || 6),
     ),
     collectionName: String(getPrefAny("collection.name") || "AI精选前沿论文"),
+    collectionThesisName: String(
+      getPrefAny("collection.thesisName") || "AI精选学位论文",
+    ),
     researchTag: String(getPrefAny("tags.research") || ""),
     crossrefEnable: Boolean(getPrefAny("feed.crossrefEnable")),
     crossrefRows: Math.max(

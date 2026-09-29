@@ -3,6 +3,7 @@ import { getString } from "../utils/locale";
 import { getPrefAny, setPrefAny } from "./config";
 import { generateCriteria, testConnection } from "./llm";
 import { probeJournalIssn } from "./crossref";
+import { probeFeed } from "./rss";
 import { runPipeline } from "./pipeline";
 
 function prefpaneId(key: string): string {
@@ -42,8 +43,9 @@ export function registerPrefsScripts(win: Window): void {
   bindNumber(win, "fetch-days", "fetch.daysLimit");
   bindNumber(win, "fetch-workers", "fetch.workers");
   bindText(win, "collection-name", "collection.name");
+  bindText(win, "collection-thesis-name", "collection.thesisName");
   bindText(win, "tags-research", "tags.research");
-  bindNumber(win, "autorun-interval", "autoRun.intervalHours");
+  bindNumber(win, "autorun-interval", "autoRun.intervalDays");
   bindText(win, "feeds-list", "feeds.list");
   bindText(win, "journals-list", "feed.journals");
   bindText(win, "research-direction", "research.direction");
@@ -63,6 +65,7 @@ export function registerPrefsScripts(win: Window): void {
   );
 
   bindLlmTestButton(win);
+  bindFeedsTestButton(win);
   bindCriteriaGenerateButton(win);
   bindCrossrefTestButton(win);
 
@@ -93,6 +96,80 @@ function bindLlmTestButton(win: Window): void {
     button.disabled = false;
     resultEl.style.color = result.ok ? "green" : "red";
     resultEl.textContent = `${getString(result.ok ? "pref-llm-test-ok" : "pref-llm-test-fail")} ${result.message}`;
+  });
+}
+
+/**
+ * Probe every RSS feed URL currently typed in the feeds list.
+ */
+function bindFeedsTestButton(win: Window): void {
+  const button = queryEl(win, "feeds-test");
+  const resultEl = queryEl(win, "feeds-test-result");
+  if (!button || !resultEl) {
+    return;
+  }
+  button.addEventListener("click", async () => {
+    const text = String(queryEl(win, "feeds-list")?.value || "");
+    const lines = text
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      resultEl.style.color = "red";
+      resultEl.textContent = getString("pref-feeds-test-empty");
+      return;
+    }
+    button.disabled = true;
+    resultEl.style.color = "gray";
+    resultEl.textContent = getString("pref-feeds-test-waiting");
+    try {
+      const results: Awaited<ReturnType<typeof probeFeed>>[] = [];
+      const validUrls: string[] = [];
+      for (const line of lines) {
+        if (/^https?:\/\//i.test(line)) {
+          validUrls.push(line);
+        } else {
+          results.push({
+            url: line,
+            title: line,
+            ok: false,
+            count: 0,
+            message: `${line}（URL 格式无效，必须以 http:// 或 https:// 开头）`,
+          });
+        }
+      }
+      let cursor = 0;
+      const concurrency = 3;
+      const workers = Array.from(
+        { length: Math.min(concurrency, validUrls.length) },
+        async () => {
+          while (cursor < validUrls.length) {
+            const url = validUrls[cursor++];
+            results.push(await probeFeed(url));
+          }
+        },
+      );
+      await Promise.all(workers);
+      const failed = results.filter((r) => !r.ok);
+      resultEl.style.color = failed.length === 0 ? "green" : "red";
+      if (failed.length === 0) {
+        resultEl.textContent = getString("pref-feeds-test-ok", {
+          args: { ok: results.length },
+        });
+      } else {
+        const summary = failed.map((f) => f.message).join("；");
+        resultEl.textContent = getString("pref-feeds-test-fail", {
+          args: { count: failed.length, names: summary },
+        });
+      }
+    } catch (err) {
+      resultEl.style.color = "red";
+      resultEl.textContent = getString("pref-feeds-test-fail", {
+        args: { count: 1, names: String(err) },
+      });
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 

@@ -55,9 +55,10 @@ pref("fetch.workers", 6);
 
 // Output.
 pref("collection.name", "AI精选前沿论文");
+pref("collection.thesisName", "AI精选学位论文");
 pref("tags.research", "承载能力评估");
 
 // Auto run.
 pref("autoRun.enable", false);
-pref("autoRun.intervalHours", 168);
+pref("autoRun.intervalDays", 7);
 pref("autoRun.lastRun", 0);

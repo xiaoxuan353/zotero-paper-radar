@@ -20,9 +20,10 @@ declare namespace _ZoteroTypes {
       "fetch.daysLimit": number;
       "fetch.workers": number;
       "collection.name": string;
+      "collection.thesisName": string;
       "tags.research": string;
       "autoRun.enable": boolean;
-      "autoRun.intervalHours": number;
+      "autoRun.intervalDays": number;
       "autoRun.lastRun": number;
     };
   }
