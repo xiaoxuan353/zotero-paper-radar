@@ -12,6 +12,8 @@ export interface EnrichedMeta {
  * Fill missing metadata (journal, volume, issue, pages, date) from Crossref.
  * Failures are non-fatal: the item is saved with whatever is known.
  */
+const CROSSREF_MAILTO = "paper-radar@zotero.plugin";
+
 export async function enrichFromCrossref(
   title: string,
   doi: string,
@@ -24,8 +26,8 @@ export async function enrichFromCrossref(
   }
 
   const url = doi
-    ? `https://api.crossref.org/works/${encodeURIComponent(doi)}`
-    : `https://api.crossref.org/works?query.title=${encodeURIComponent(title)}&rows=1`;
+    ? `https://api.crossref.org/works/${encodeURIComponent(doi)}?mailto=${CROSSREF_MAILTO}`
+    : `https://api.crossref.org/works?query.title=${encodeURIComponent(title)}&rows=1&mailto=${CROSSREF_MAILTO}`;
   try {
     const resp = await Zotero.HTTP.request("GET", url, {
       responseType: "json",
@@ -131,7 +133,7 @@ export async function scanJournalByIssn(
     // request level metadata only; abstracts come for many records
     select:
       "DOI,title,author,abstract,container-title,published-print,published-online,issued,type",
-    mailto: "paper-radar@zotero.plugin",
+    mailto: CROSSREF_MAILTO,
   });
   const url = `${CROSSREF_BASE}/${encodeURIComponent(issn)}/works?${params}`;
 
@@ -148,6 +150,10 @@ export async function scanJournalByIssn(
       for (const item of items) {
         const title = firstOrString(item?.title);
         if (!title) {
+          continue;
+        }
+        const itemType = String(item?.type || "").trim();
+        if (isIgnoredWork(itemType, title)) {
           continue;
         }
         const doi = String(item?.DOI || "").trim();
@@ -202,7 +208,7 @@ export async function probeJournalIssn(
   issn: string,
   name: string,
 ): Promise<JournalProbe> {
-  const url = `${CROSSREF_BASE}/${encodeURIComponent(issn)}`;
+  const url = `${CROSSREF_BASE}/${encodeURIComponent(issn)}?mailto=${CROSSREF_MAILTO}`;
   // Retry transient failures (rate-limit/5xx) so a temporary blip doesn't get
   // reported as "invalid journal". 404/400 are permanent and fail fast.
   const attempts = 3;
@@ -376,4 +382,28 @@ function isoDateDaysAgo(days: number): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/**
+ * Non-article works (errata, editorials, book reviews, etc.) returned by
+ * Crossref journal queries that should not be evaluated as research papers.
+ */
+export function isIgnoredWork(type: string, title: string): boolean {
+  if (type && type !== "journal-article" && type !== "posted-content") {
+    return true;
+  }
+  const t = title.trim();
+  const ignoredPrefixes = [
+    /^(author |publisher )?correction\b/i,
+    /^errat(um|a)\b/i,
+    /^corrigend(um|a)\b/i,
+    /^(guest )?editorial\b/i,
+    /^editorial board\b/i,
+    /^retraction\b/i,
+    /^book review\b/i,
+    /^(table of contents|toc)\b/i,
+    /^issue information\b/i,
+    /^(in memoriam|obituary)\b/i,
+  ];
+  return ignoredPrefixes.some((regex) => regex.test(t));
 }

@@ -1,5 +1,5 @@
 import { getString } from "../utils/locale";
-import { getConfig, setPrefAny } from "./config";
+import { getConfig, setLastRun } from "./config";
 import { fetchFeed, makePaperId, withinDays } from "./rss";
 import type { FeedEntry } from "./rss";
 import { evaluatePaper } from "./llm";
@@ -32,6 +32,7 @@ export async function runPipeline(): Promise<void> {
     const cfg = getConfig();
     if (!cfg.apiKey) {
       showPopup(getString("progress-nokey"), "fail");
+      setLastRun();
       return;
     }
     progress
@@ -44,7 +45,9 @@ export async function runPipeline(): Promise<void> {
     const processed = await loadProcessed();
 
     // Fetch all feeds concurrently; failures only log and skip that feed.
-    const settled = await Promise.allSettled(cfg.feeds.map(fetchFeed));
+    const settled = await Promise.allSettled(
+      cfg.feeds.map((url) => fetchFeed(url)),
+    );
     const byId = new Map<string, FeedEntry>();
     let feedFailures = 0;
     settled.forEach((result, i) => {
@@ -118,7 +121,7 @@ export async function runPipeline(): Promise<void> {
       // No new papers this run: still count it as a completed run, otherwise
       // autoRun.lastRun stays stale (0) and the scheduler triggers on every
       // startup regardless of the configured interval.
-      setPrefAny("autoRun.lastRun", Date.now());
+      setLastRun();
       progress.changeLine({
         text: getString("progress-none", { args: { days: cfg.daysLimit } }),
         progress: 100,
@@ -131,13 +134,8 @@ export async function runPipeline(): Promise<void> {
     }
     if (cfg.crossrefEnable) {
       const crTotal = cfg.crossrefJournals.length;
-      showPopup(
-        getString("progress-crossref-summary", {
-          args: {
-            ok: Math.max(0, crTotal - crossrefFailures),
-            fail: crossrefFailures,
-          },
-        }),
+      ztoolkit.log(
+        `Crossref scan finished: ${Math.max(0, crTotal - crossrefFailures)} ok, ${crossrefFailures} fail`,
       );
     }
     progress.changeLine({
@@ -218,7 +216,7 @@ export async function runPipeline(): Promise<void> {
     }
 
     await saveProcessed(processed);
-    setPrefAny("autoRun.lastRun", Date.now());
+    setLastRun();
     progress.changeLine({
       text: getString("progress-done", {
         args: {
@@ -240,6 +238,7 @@ export async function runPipeline(): Promise<void> {
     } catch {
       // Progress window may not be usable here.
     }
+    setLastRun();
   } finally {
     running = false;
   }

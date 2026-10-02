@@ -61,4 +61,4 @@ pref("tags.research", "承载能力评估");
 // Auto run.
 pref("autoRun.enable", false);
 pref("autoRun.intervalDays", 7);
-pref("autoRun.lastRun", 0);
+pref("autoRun.lastRun", "0");

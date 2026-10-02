@@ -1,4 +1,4 @@
-import { getPrefAny } from "./config";
+import { getLastRun, getPrefAny } from "./config";
 import { isRunning, runPipeline } from "./pipeline";
 
 const STARTUP_DELAY_MS = 30_000;
@@ -34,5 +34,13 @@ function isDue(): boolean {
       ? Math.max(1, Number(daysPref) || 7) * 86400_000
       : Math.max(1, Number(getPrefAny("autoRun.intervalHours")) || 168) *
         3600_000;
-  return Date.now() - Number(getPrefAny("autoRun.lastRun") || 0) >= intervalMs;
+  const lastRun = getLastRun();
+  if (lastRun === 0) {
+    return true;
+  }
+  const elapsed = Date.now() - lastRun;
+  if (elapsed < 0) {
+    return false;
+  }
+  return elapsed >= intervalMs;
 }

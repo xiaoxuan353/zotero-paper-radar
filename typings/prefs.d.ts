@@ -24,7 +24,7 @@ declare namespace _ZoteroTypes {
       "tags.research": string;
       "autoRun.enable": boolean;
       "autoRun.intervalDays": number;
-      "autoRun.lastRun": number;
+      "autoRun.lastRun": string;
     };
   }
 }

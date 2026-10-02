@@ -54,12 +54,24 @@ export function withinDays(entry: FeedEntry, days: number): boolean {
 }
 
 export async function fetchFeed(feedUrl: string): Promise<FeedEntry[]> {
-  const resp = await Zotero.HTTP.request("GET", feedUrl, {
-    responseType: "text",
-    timeout: 20000,
-    headers: BROWSER_HEADERS,
-  });
-  return parseFeed(resp.responseText || "", feedUrl);
+  const attempts = 2;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const resp = await Zotero.HTTP.request("GET", feedUrl, {
+        responseType: "text",
+        timeout: 20000,
+        headers: BROWSER_HEADERS,
+      });
+      return parseFeed(resp.responseText || "", feedUrl);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < attempts) {
+        await Zotero.Promise.delay(1500 * attempt);
+      }
+    }
+  }
+  throw lastErr;
 }
 
 /**

@@ -67,7 +67,16 @@ export async function evaluatePaper(
       }
       return null;
     } catch (err: any) {
-      const status = err?.xhr?.status ?? err?.status ?? 0;
+      const status = Number(err?.xhr?.status ?? err?.status ?? 0);
+      // Permanent client errors (400 Bad Request, 401 Unauthorized, 403 Forbidden,
+      // 404 Not Found, 422 Unprocessable, etc.) will never succeed on retry.
+      // Only 429 (rate limit), 408 (timeout), and transient 5xx/network errors should be retried.
+      if (status >= 400 && status < 500 && status !== 429 && status !== 408) {
+        ztoolkit.log(
+          `LLM evaluation aborted with permanent HTTP error ${status}: ${describeHttpError(err)}`,
+        );
+        return null;
+      }
       const retriable = attempt < retries;
       if (status === 429 && retriable) {
         const wait = 2.5 * (attempt + 1) + 0.5 + Math.random();
@@ -193,20 +202,78 @@ export async function generateCriteria(
  * Parse the mandatory first line 【相关度：高/中/低】 out of the review text.
  */
 export function parseReview(text: string): ReviewResult {
-  // 1. Try canonical pattern: 【相关度：高】 or 【相关度: 高】
-  let match = text.match(/【相关度[：:]\s*([高中低])】/);
-  if (!match) {
-    // 2. Tolerant fallback for model output variations like:
-    // 【相关度】：高, 【相关度】：【高】, 相关度：高, **相关度：高**, etc.
-    match = text.match(/【?相关度】?[：:]\s*【?([高中低])】?/);
-  }
+  const trimmed = text.trim();
+  // Strip reasoning blocks (e.g. <think>...</think>) from reasoning models
+  const clean = trimmed.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+
   const levelMap: Record<string, ReviewLevel> = {
     高: "high",
     中: "mid",
     低: "low",
   };
-  const level = match ? levelMap[match[1]] || "unknown" : "unknown";
-  return { level, text: text.trim() };
+
+  const lines = clean
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  // Helper to detect if a line is repeating criteria or output format requirements
+  const isPromptEcho = (line: string): boolean => {
+    if (
+      line.includes("【评估要求】") ||
+      line.includes("严格按格式输出") ||
+      line.includes("核心研究方向") ||
+      line.includes("结合研究方向") ||
+      line.includes("生成规则") ||
+      (line.includes("或") && /相关度/.test(line))
+    ) {
+      return true;
+    }
+    const ratingCount = (line.match(/[高中低]/g) || []).length;
+    if (ratingCount >= 2 && line.includes("相关度")) {
+      return true;
+    }
+    return false;
+  };
+
+  // 1. Try canonical pattern at line beginning: e.g. 【相关度：高】 or **【相关度: 高】**
+  for (const line of lines) {
+    if (isPromptEcho(line)) {
+      continue;
+    }
+    const match = line.match(/^[#*\s\d.、-]*【相关度[：:]\s*([高中低])】/);
+    if (match && levelMap[match[1]]) {
+      return { level: levelMap[match[1]], text: trimmed };
+    }
+  }
+
+  // 2. Tolerant fallback at line beginning: e.g. 相关度：高, 【相关度】：高, **相关度**：高
+  for (const line of lines) {
+    if (isPromptEcho(line)) {
+      continue;
+    }
+    const match = line.match(
+      /^[#*\s\d.、-]*【?相关度】?[：:]\s*【?([高中低])】?/,
+    );
+    if (match && levelMap[match[1]]) {
+      return { level: levelMap[match[1]], text: trimmed };
+    }
+  }
+
+  // 3. Last-resort fallback: any non-echo line containing the rating token
+  for (const line of lines) {
+    if (isPromptEcho(line)) {
+      continue;
+    }
+    const match =
+      line.match(/【相关度[：:]\s*([高中低])】/) ||
+      line.match(/【?相关度】?[：:]\s*【?([高中低])】?/);
+    if (match && levelMap[match[1]]) {
+      return { level: levelMap[match[1]], text: trimmed };
+    }
+  }
+
+  return { level: "unknown", text: trimmed };
 }
 
 /**

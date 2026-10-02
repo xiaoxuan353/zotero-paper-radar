@@ -36,7 +36,35 @@ export function getPrefAny(key: string): any {
 }
 
 export function setPrefAny(key: string, value: any) {
-  return Zotero.Prefs.set(`${config.prefsPrefix}.${key}`, value, true);
+  try {
+    return Zotero.Prefs.set(`${config.prefsPrefix}.${key}`, value, true);
+  } catch {
+    try {
+      Zotero.Prefs.clear(`${config.prefsPrefix}.${key}`, true);
+      return Zotero.Prefs.set(`${config.prefsPrefix}.${key}`, value, true);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function getLastRun(): number {
+  const val = getPrefAny("autoRun.lastRun");
+  const num = Number(val);
+  return Number.isFinite(num) && num > 0 ? num : 0;
+}
+
+export function setLastRun(time: number = Date.now()): void {
+  const fullKey = `${config.prefsPrefix}.autoRun.lastRun`;
+  try {
+    const current = Zotero.Prefs.get(fullKey, true);
+    if (typeof current === "number") {
+      Zotero.Prefs.clear(fullKey, true);
+    }
+  } catch {
+    // ignore
+  }
+  setPrefAny("autoRun.lastRun", String(time));
 }
 
 /**
