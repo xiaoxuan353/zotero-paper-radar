@@ -7,6 +7,8 @@
 declare namespace _ZoteroTypes {
   interface Prefs {
     PluginPrefsMap: {
+      "llm.profiles": string;
+      "llm.activeProfileId": string;
       "llm.baseUrl": string;
       "llm.apiKey": string;
       "llm.model": string;
@@ -17,8 +19,13 @@ declare namespace _ZoteroTypes {
       "feed.crossrefEnable": boolean;
       "feed.crossrefRows": number;
       "feed.journals": string;
+      "abstracts.elsevierApiKey": string;
       "fetch.daysLimit": number;
       "fetch.workers": number;
+      "fetch.staleFallback": boolean;
+      "fetch.staleFallbackLimit": number;
+      "fetch.strictMetadata": boolean;
+      "dedup.fingerprint": string;
       "collection.name": string;
       "collection.thesisName": string;
       "tags.research": string;

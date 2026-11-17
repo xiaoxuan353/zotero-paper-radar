@@ -26,11 +26,12 @@ export async function evaluatePaper(
 ): Promise<ReviewResult | null> {
   // Newly-accepted / online-first items often carry no abstract. Sending an
   // empty field makes the model invent content, so hand it an explicit note
-  // telling it to judge from the title alone.
+  // telling it to judge from the title alone — and to lean inclusive, because
+  // most English publishers ship no abstract to us at all.
   const cleanAbstract = abstract.trim();
   const abstractDisplay = cleanAbstract
     ? cleanAbstract
-    : "（注：该论文为期刊最新录用/网络首发阶段，暂未公布摘要，请严格依据论文标题及相关研究方向进行专业研判）";
+    : "（注：该论文暂未公布摘要，或该来源（ScienceDirect / ASCE / T&F / 万方）本身不提供摘要。请严格依据论文标题研判：标题信息有限时，只要标题涉及桥梁结构（梁桥/板梁/T梁/箱梁/桥面/支座/墩台/承载能力/荷载试验/健康监测/损伤识别/横向分布/影响线等）或核心方向所用的方法（实测响应分析、模型修正、刚度反演、可靠度评定），请倾向于判【中】而不是【低】；只有标题明确属于【低】的排除项时才判【低】。）";
 
   const prompt = [
     "你是一位学术论文审稿与领域分析专家。",
@@ -160,8 +161,8 @@ export async function generateCriteria(
     "   - 【中】：<结合研究方向，写出判定为“方法可借鉴/间接相关”的具体标准>",
     "   - 【低】：<结合研究方向，写出判定为“无关方向”的具体标准>",
     "2. 请用 2 句简明扼要的中文总结该文的研究内容与核心方法。",
-    "2. 三档标准要具体、可操作，紧扣研究方向，不要泛泛而谈。",
-    "3. 只输出评估要求文本本身，不要输出任何解释、前言、后记或代码块标记。",
+    "3. 【中】的判定范围要足够宽：只要方法可借鉴或属间接相关就应归入【中】。【低】只用于明确无关的方向，不要把“未明确针对本方向”当作【低】。三档标准要具体、可操作，紧扣研究方向，不要泛泛而谈。",
+    "4. 只输出评估要求文本本身，不要输出任何解释、前言、后记或代码块标记。",
     "",
     `【研究方向】：\n${direction}`,
   ].join("\n");

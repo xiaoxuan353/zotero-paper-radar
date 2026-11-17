@@ -5,6 +5,11 @@
 // Default is Volcano Ark Coding Plan; any OpenAI-compatible endpoint works.
 // baseUrl is everything before "/chat/completions"; the full request URL is
 // resolved automatically at runtime (see src/modules/config.ts).
+pref(
+  "llm.profiles",
+  '[{"id":"default","name":"默认模型","baseUrl":"https://ark.cn-beijing.volces.com/api/coding/v3","apiKey":"","model":"deepseek-v4-flash"}]',
+);
+pref("llm.activeProfileId", "default");
 pref("llm.baseUrl", "https://ark.cn-beijing.volces.com/api/coding/v3");
 pref("llm.apiKey", "");
 pref("llm.model", "deepseek-v4-flash");
@@ -50,8 +55,25 @@ pref(
 );
 
 // Fetch behavior.
+// Optional Elsevier API key (dev.elsevier.com): the only way to obtain
+// abstracts for Elsevier journals, which publish none in RSS or Crossref.
+pref("abstracts.elsevierApiKey", "");
+
 pref("fetch.daysLimit", 9);
 pref("fetch.workers", 6);
+// Some "最新录用 / online first" feeds (e.g. 中国公路学报) publish dates far
+// older than the recency window. Without this fallback such a source silently
+// contributes nothing at all. When a feed has no in-window items, take its
+// newest N once; the processed-record dedup guarantees no double evaluation.
+pref("fetch.staleFallback", true);
+pref("fetch.staleFallbackLimit", 10);
+// Skip saving items that still have neither creators nor a DOI after Crossref
+// enrichment (deferred to the next run instead).
+pref("fetch.strictMetadata", true);
+// Fingerprint of the model + research direction + criteria that produced the
+// stored verdicts. When it changes, processed records are cleared (with a
+// backup) so papers judged under the old rules are re-evaluated.
+pref("dedup.fingerprint", "");
 
 // Output.
 pref("collection.name", "AI精选前沿论文");

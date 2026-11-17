@@ -1,7 +1,11 @@
-.vscode
+﻿.vscode
+.scaffold
 build
 logs
 node_modules
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+# generated data backups (not source code)
+backup_*.json
+cleanup_plan_*.json

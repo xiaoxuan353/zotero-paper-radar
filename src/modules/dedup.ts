@@ -1,13 +1,18 @@
 const FILE_NAME = "paperRadarProcessed.json";
+const BACKUP_FILE_NAME = "paperRadarProcessed.prev.json";
 const RETENTION_MS = 90 * 86400_000;
 
 export type ProcessedMap = Record<string, number>;
 
-function filePath(): string {
+function profilePath(fileName: string): string {
   // Zotero.getProfileDirectory() returns an nsIFile of the current profile.
   const profileDir = (Zotero as any).getProfileDirectory().path as string;
   const sep = (Zotero as any).isWin ? "\\" : "/";
-  return `${profileDir}${sep}${FILE_NAME}`;
+  return `${profileDir}${sep}${fileName}`;
+}
+
+function filePath(): string {
+  return profilePath(FILE_NAME);
 }
 
 /**
@@ -37,13 +42,32 @@ export async function loadProcessed(): Promise<ProcessedMap> {
   return map;
 }
 
-export async function saveProcessed(map: ProcessedMap): Promise<void> {
+export async function saveProcessed(map: ProcessedMap): Promise<boolean> {
   try {
     await (Zotero.File as any).putContentsAsync(
       filePath(),
       JSON.stringify(map, null, 2),
     );
+    return true;
   } catch (err) {
     ztoolkit.log(`Failed to save processed records: ${err}`);
+    return false;
+  }
+}
+
+/**
+ * Copy the current processed-record map to a side file before it is discarded,
+ * so a criteria change that triggers re-evaluation stays recoverable.
+ */
+export async function backupProcessed(map: ProcessedMap): Promise<boolean> {
+  try {
+    await (Zotero.File as any).putContentsAsync(
+      profilePath(BACKUP_FILE_NAME),
+      JSON.stringify(map, null, 2),
+    );
+    return true;
+  } catch (err) {
+    ztoolkit.log(`Failed to back up processed records: ${err}`);
+    return false;
   }
 }

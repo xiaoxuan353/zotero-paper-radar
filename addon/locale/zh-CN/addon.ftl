@@ -7,7 +7,18 @@ menu-tools-openprefs = 设置…
 
 # Dynamic (JS getString) strings. These must live here because getString()
 # resolves against the addon.ftl bundle, not the preference-pane ftl.
-pref-llm-test-waiting = 正在测试…
+pref-llm-summary-badge = （当前：{ $name } · 点击{ $action }）
+pref-llm-action-expand = 展开
+pref-llm-action-collapse = 折叠
+pref-llm-profile-new-default-name = 新建模型
+pref-llm-profile-delete-last-warn = 至少需要保留一个大模型配置
+pref-llm-profile-delete-confirm = 确定要删除模型「{ $name }」吗？
+pref-feeds-count-badge = （已配置 { $count } 个订阅源）
+pref-crossref-count-badge = （已配置 { $count } 本期刊）
+pref-feeds-reset-confirm = 确定要恢复内置的 18 个默认 RSS 订阅源吗？当前列表将被覆盖。
+pref-crossref-reset-confirm = 确定要恢复内置的 18 本默认 Crossref 期刊列表吗？当前列表将被覆盖。
+pref-crossref-test-progress = 正在逐一检查期刊（{ $done }/{ $total }）…
+pref-llm-test-waiting = ⏳ 正在测试…
 pref-llm-test-ok = ✅ 连接成功
 pref-llm-test-fail = ❌ 连接失败
 pref-research-generate-waiting = 正在生成…
@@ -15,11 +26,11 @@ pref-research-generate-ok = ✅ 已生成并填入上方输入框
 pref-research-generate-fail = ❌ 生成失败，请检查接口配置或稍后重试
 pref-research-generate-needdir = 请先填写研究方向
 pref-crossref-test-empty = 尚未输入任何期刊，请先填写 Crossref 期刊列表
-pref-crossref-test-waiting = 正在逐一检查期刊，请稍候…
+pref-crossref-test-waiting = ⏳ 正在逐一检查期刊，请稍候…
 pref-crossref-test-ok = ✅ { $ok } 个期刊均有效
 pref-crossref-test-fail = ❌ { $count } 个期刊无效：{ $names }
 pref-feeds-test-empty = 尚未输入任何订阅源，请先填写 RSS 列表
-pref-feeds-test-waiting = 正在检测订阅源，请稍候…
+pref-feeds-test-waiting = ⏳ 正在检测订阅源，请稍候…
 pref-feeds-test-ok = ✅ { $ok } 个订阅源均正常
 pref-feeds-test-fail = ❌ { $count } 个订阅源异常：{ $names }
 
@@ -37,7 +48,7 @@ menu-item-batch-eval = 论文雷达
 menu-collection-batch-eval = 论文雷达
 progress-batch-start = 开始批量研判 { $total } 篇文献（跳过已研判 { $skipped } 篇）…
 progress-batch-evaluating = 正在 AI 研判（{ $done }/{ $total }）：{ $title }
-progress-batch-done = 批量研判完成！已处理 { $done } 篇（高 { $high } / 中 { $mid } / 低 { $low }），跳过已研判 { $skipped } 篇
+progress-batch-done = 批量研判完成！已处理 { $done } 篇（高 { $high } / 中 { $mid } / 低 { $low }），跳过已研判 { $skipped } 篇，保存失败 { $failed } 篇
 progress-batch-all-evaluated = 所选 { $count } 篇文献均已完成研判（按住 Shift 可强制重新研判）
 progress-batch-no-items = 未找到可研判的文献条目
 
@@ -46,6 +57,6 @@ menu-collection-import-filter = 导入并 AI 筛选到此分类…
 filepicker-title = 选择文献数据文件 (.ris / .enw / .bib)
 progress-import-filter-start = 正在对文件中的 { $total } 篇文献进行内存 AI 预审…
 progress-import-filter-evaluating = 内存预审中（{ $done }/{ $total }）：{ $title }
-progress-import-filter-done = 内存预审完成！已精选入库 { $saved } 篇（高 { $high } / 中 { $mid }），直接过滤抛弃 { $discarded } 篇无关文献，文库零污染！
+progress-import-filter-done = 内存预审完成！已精选入库 { $saved } 篇（高 { $high } / 中 { $mid }），直接过滤抛弃 { $discarded } 篇无关文献，跳过重复 { $duplicate } 篇，保存失败 { $failed } 篇，文库零污染！
 progress-import-filter-nofile = 未选择任何文件
 progress-import-filter-empty = 文件为空或未解析到有效文献记录

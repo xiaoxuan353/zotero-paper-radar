@@ -1,7 +1,11 @@
 import { getConfig } from "./config";
 import { evaluatePaper } from "./llm";
 import { getString } from "../utils/locale";
-import { getOrCreateCollection, parseCreators } from "./writer";
+import {
+  getOrCreateCollection,
+  existsInLibrary,
+  parseCreators,
+} from "./writer";
 import { cleanTitlePrefix } from "./rss";
 
 declare const Components: any;
@@ -126,6 +130,7 @@ export async function runBatchEvaluation(
     let high = 0;
     let mid = 0;
     let low = 0;
+    let failed = 0;
 
     await runWithPool(targets, cfg.workers, async (item) => {
       const title = String(item.getField("title") || "").trim();
@@ -142,12 +147,15 @@ export async function runBatchEvaluation(
         item.removeTag("相关度：高");
         item.removeTag("相关度：中");
         item.removeTag("相关度：低");
+        item.removeTag("AI精选/高相关");
+        item.removeTag("AI精选/中相关");
 
         const isThesis = item.itemType === "thesis";
 
         if (review.level === "high") {
           high++;
           item.addTag("相关度：高");
+          item.addTag("AI精选/高相关");
           item.addTag("AI精选");
           if (cfg.researchTag) {
             item.addTag(cfg.researchTag);
@@ -155,6 +163,7 @@ export async function runBatchEvaluation(
         } else if (review.level === "mid") {
           mid++;
           item.addTag("相关度：中");
+          item.addTag("AI精选/中相关");
           item.addTag("AI精选");
           if (cfg.researchTag) {
             item.addTag(cfg.researchTag);
@@ -163,6 +172,14 @@ export async function runBatchEvaluation(
           low++;
           item.addTag("相关度：低");
           item.removeTag("AI精选");
+          item.removeTag("AI精选/高相关");
+          item.removeTag("AI精选/中相关");
+          // Downgraded to low: clear the research tag too so no "selected"
+          // marker lingers, while the verdict note below is kept as the reason
+          // record for manual review.
+          if (cfg.researchTag) {
+            item.removeTag(cfg.researchTag);
+          }
         }
 
         // Tag thesis metadata and categorize into the dedicated collection
@@ -190,10 +207,16 @@ export async function runBatchEvaluation(
           }
         }
 
-        await item.saveTx();
+        try {
+          await item.saveTx();
 
-        // Update or create AI Review child note
-        await saveOrUpdateAiNote(item, review.text);
+          // Update or create AI Review child note
+          await saveOrUpdateAiNote(item, review.text);
+        } catch (e) {
+          // A single item failing to save must not abort the whole batch.
+          failed++;
+          ztoolkit.log(`Failed to save changes for "${title}": ${e}`);
+        }
       }
 
       progress.changeLine({
@@ -216,6 +239,7 @@ export async function runBatchEvaluation(
           mid,
           low,
           skipped,
+          failed,
         },
       }),
       progress: 100,
@@ -753,6 +777,8 @@ export async function importAndFilterFile(
     let high = 0;
     let mid = 0;
     let discarded = 0;
+    let duplicate = 0;
+    let failed = 0;
 
     await runWithPool(candidates, cfg.workers, async (paper) => {
       const review = await evaluatePaper(cfg, paper.title, paper.abstract);
@@ -761,6 +787,14 @@ export async function importAndFilterFile(
       if (review && (review.level === "high" || review.level === "mid")) {
         // QUALIFIED PAPER: Save into Zotero!
         try {
+          // Skip anything already in the library (e.g. imported from the feed
+          // pipeline) so re-importing a file never duplicates entries.
+          const alreadyExists = await existsInLibrary(paper.doi, paper.title);
+          if (alreadyExists) {
+            duplicate++;
+            ztoolkit.log(`Skipped existing paper: ${paper.title}`);
+            return;
+          }
           const libId = Zotero.Libraries.userLibraryID;
           const item = new Zotero.Item(paper.itemType);
           item.libraryID = libId;
@@ -808,6 +842,9 @@ export async function importAndFilterFile(
             item.addTag(cfg.researchTag);
           }
           item.addTag(review.level === "high" ? "相关度：高" : "相关度：中");
+          item.addTag(
+            review.level === "high" ? "AI精选/高相关" : "AI精选/中相关",
+          );
 
           if (isThesis) {
             item.addTag("学位论文");
@@ -837,8 +874,14 @@ export async function importAndFilterFile(
             } else {
               mid++;
             }
+          } else {
+            failed++;
+            ztoolkit.log(
+              `Save returned no id for "${paper.title}" (${saveResult})`,
+            );
           }
         } catch (saveErr) {
+          failed++;
           ztoolkit.log(`Failed to save pre-screened paper: ${saveErr}`);
         }
       } else {
@@ -865,6 +908,8 @@ export async function importAndFilterFile(
           high,
           mid,
           discarded,
+          duplicate,
+          failed,
         },
       }),
       progress: 100,

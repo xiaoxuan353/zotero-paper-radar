@@ -31,7 +31,7 @@ export async function getOrCreateCollection(
  * exists in the user library, to avoid duplicates beyond feed-level dedup.
  */
 export async function existsInLibrary(
-  doi: string,
+  doi: string | undefined,
   title: string,
 ): Promise<boolean> {
   try {
@@ -115,6 +115,7 @@ export async function savePaper(
       item.addTag(researchTag);
     }
     item.addTag(level === "high" ? "相关度：高" : "相关度：中");
+    item.addTag(level === "high" ? "AI精选/高相关" : "AI精选/中相关");
     const saveResult = await item.saveTx();
     if (typeof saveResult !== "number") {
       ztoolkit.log(`Item save returned no id: ${entry.title}`);

@@ -14,3 +14,13 @@ tsconfig.tsbuildinfo
 .scaffold
 build
 logs
+
+# Personal library data dumps / one-off maintenance output (not source)
+backup_*.json
+cleanup_plan_*.json
+scripts/cleanup_junk_abstracts.py
+# Unrelated personal files kept in this working copy
+DM_2026*.jpg
+*.pdf
+convert_webp_to_jpg.py
+rotate_pdf.py

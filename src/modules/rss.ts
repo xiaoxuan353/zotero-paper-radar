@@ -7,6 +7,47 @@ const BROWSER_HEADERS = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 (mailto:paper-radar@zotero.plugin)",
 };
 
+/**
+ * True when a feed's <description> carries only publication metadata instead of
+ * a real abstract. ScienceDirect, ASCE and Taylor & Francis all do this:
+ *
+ * - ScienceDirect: "Publication date: 15 January 2027 Source: Engineering
+ *   Structures, Volume 371, Part 2 Author(s): A. Katsamakas"
+ * - ASCE:          "Journal of Bridge Engineering, Volume 32, Issue 1,
+ *   January 1, 2027."
+ * - T&F:           "Volume 22, Issue 11, November 2026, Page 1989-2004."
+ *
+ * Passing that to the model as an "Abstract" hides the fact that no abstract
+ * exists, so it never gets the "judge from the title alone" instruction and
+ * systematically votes low. Treat it as an empty abstract instead.
+ */
+export function isMetadataDescription(text: string): boolean {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  if (!t) {
+    return true;
+  }
+  // Unambiguous metadata markers: no real abstract opens with these.
+  if (/^publication date\s*:/i.test(t) || /\bauthor\(s\)\s*:/i.test(t)) {
+    return true;
+  }
+  // A real abstract is long; metadata blurbs are short.
+  if (t.length >= 400) {
+    return false;
+  }
+  const looksLikeMetadata =
+    /\bvolume\s+\d+\b/i.test(t) ||
+    /\bissue\s+\d+\b/i.test(t) ||
+    /\bpage(s)?\s+\d+/i.test(t) ||
+    /^\s*(table of contents|toc)\b/i.test(t);
+  if (!looksLikeMetadata) {
+    return false;
+  }
+  // Require it to look like a blurb, not a sentence-rich abstract that merely
+  // happens to mention a volume/issue.
+  const sentenceEnds = (t.match(/[.!?。！？]/g) || []).length;
+  return sentenceEnds <= 3;
+}
+
 export interface FeedEntry {
   title: string;
   abstract: string;
@@ -21,6 +62,23 @@ export interface FeedEntry {
 }
 
 /**
+ * ScienceDirect puts the author list inside the description blurb
+ * ("... Author(s): Xuhong Qiang, Xinran Duan, ...") instead of a dc:creator
+ * tag, which used to leave every such item in Zotero without creators.
+ */
+export function parseDescriptionAuthors(rawDescription: string): string[] {
+  const m = /Author\(s\)\s*:\s*([^<]+)/i.exec(rawDescription || "");
+  if (!m) {
+    return [];
+  }
+  return m[1]
+    .split(/[,;、]/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => s.length > 1 && s.length < 80 && !/^\d+$/.test(s))
+    .slice(0, 50);
+}
+
+/**
  * Strip common Chinese online-first / pre-publication prefixes
  * (e.g. 【网络首发】, [优先出版], etc.) for consistent deduplication.
  */
@@ -28,6 +86,37 @@ export function cleanTitlePrefix(title: string): string {
   return (title || "")
     .replace(/^[【[(（](网络首发|优先出版|最新录用|首发)[】\])）]\s*/i, "")
     .trim();
+}
+
+/**
+ * Case/whitespace-insensitive canonical title key. Used to deduplicate the
+ * same paper across RSS and Crossref scans even when one copy lacks a DOI
+ * (e.g. ScienceDirect RSS items carry no extractable DOI). Also strips the
+ * common Chinese online-first / pre-publication prefixes.
+ */
+export function normalizeTitle(title: string): string {
+  return cleanTitlePrefix(title)
+    .toLowerCase()
+    .replace(/[ \t\u3000]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/[。．.!！?？;；,，:：%]+$/g, "")
+    .trim();
+}
+
+/**
+ * Strip vendor prefixes/suffixes from a feed's channel title so the stored
+ * journal name is clean, e.g.
+ * "ScienceDirect Publication: Structures" -> "Structures",
+ * "Asce: Journal of Bridge Engineering: Table of Contents" -> "Journal of Bridge Engineering".
+ */
+function cleanJournalTitle(title: string): string {
+  let t = (title || "").trim();
+  t = t
+    .replace(/^ScienceDirect Publication\s*:\s*/i, "")
+    .replace(/^Asce\s*:\s*/i, "")
+    .replace(/:?(Table of Contents|TOC)\s*$/i, "")
+    .trim();
+  return t;
 }
 
 /**
@@ -75,10 +164,10 @@ export async function fetchFeed(feedUrl: string): Promise<FeedEntry[]> {
 }
 
 /**
- * Parse RSS 2.0 (Wanfang/ScienceDirect/...) or Atom (ASCE/T&F/...) feeds
- * into a normalized entry list.
+ * Parse RSS 2.0 (Wanfang/ScienceDirect/...), RSS 1.0/RDF (ASCE/T&F) or Atom
+ * feeds into a normalized entry list. Exported for the offline self-test.
  */
-function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
+export function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
   let doc: XMLDocument;
   try {
     doc = new DOMParser().parseFromString(xmlText, "application/xml");
@@ -101,10 +190,12 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
   const root = doc.documentElement;
   if (root) {
     if (isAtom) {
-      journalTitle = cleanText(childText(root, "title", ATOM_NS));
+      journalTitle = cleanJournalTitle(
+        cleanText(childText(root, "title", ATOM_NS)),
+      );
     } else {
       const channel = doc.getElementsByTagName("channel")[0] || root;
-      journalTitle = cleanText(childText(channel, "title"));
+      journalTitle = cleanJournalTitle(cleanText(childText(channel, "title")));
     }
   }
 
@@ -118,6 +209,7 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
     let url = "";
     let dateStr = "";
     let authors: string[] = [];
+    let rawDescription = "";
     if (isAtom) {
       abstract = cleanText(
         childText(node, "summary", ATOM_NS) ||
@@ -130,15 +222,25 @@ function parseFeed(xmlText: string, feedUrl: string): FeedEntry[] {
         childText(node, "updated", ATOM_NS);
       authors = parseAtomAuthors(node);
     } else {
-      abstract = cleanText(
-        childText(node, "description") || childText(node, "description", DC_NS),
-      );
+      rawDescription =
+        childText(node, "description") || childText(node, "description", DC_NS);
+      abstract = cleanText(rawDescription);
       url = childText(node, "link") || childText(node, "guid");
       dateStr = childText(node, "pubDate") || childText(node, "date", DC_NS);
       authors = parseRssAuthors(node);
     }
-    const published = parseDate(dateStr);
+    if (authors.length === 0 && rawDescription) {
+      authors = parseDescriptionAuthors(rawDescription);
+    }
+    // Extract the DOI from the raw description before blanking metadata, since
+    // some feeds carry the DOI inside that blurb.
     const doiMatch = `${title}\n${abstract}\n${url}`.match(DOI_RE);
+    // Feeds that only ship issue/author metadata must be treated as
+    // "no abstract", otherwise the evaluator never learns to judge by title.
+    if (isMetadataDescription(abstract)) {
+      abstract = "";
+    }
+    const published = parseDate(dateStr);
     entries.push({
       title,
       abstract,

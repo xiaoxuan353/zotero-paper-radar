@@ -1,6 +1,16 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
-import { getPrefAny, setPrefAny } from "./config";
+import {
+  DEFAULT_FEEDS_LIST,
+  DEFAULT_JOURNALS_LIST,
+  getActiveProfileId,
+  getLLMProfiles,
+  getPrefAny,
+  saveLLMProfiles,
+  setActiveProfileId,
+  setPrefAny,
+} from "./config";
+import type { LLMProfile } from "./config";
 import { generateCriteria, testConnection } from "./llm";
 import { probeJournalIssn } from "./crossref";
 import { probeFeed } from "./rss";
@@ -37,9 +47,20 @@ export function registerPrefsScripts(win: Window): void {
     addon.data.prefs.window = win;
   }
 
-  bindText(win, "llm-apikey", "llm.apiKey");
-  bindText(win, "llm-baseurl", "llm.baseUrl");
-  bindText(win, "llm-model", "llm.model");
+  // The pane's root element fires onload every time the pane is shown. When the
+  // same markup is reused, binding again would attach a second copy of every
+  // handler: one click on 新增 would create two profiles, and a stale closure
+  // would write form values into a different profile than the one on screen.
+  // A fresh pane (new markup) has no marker, so it still binds normally.
+  const rootEl = queryEl(win, "root");
+  if (rootEl && (rootEl as any).__paperRadarPrefsBound) {
+    return;
+  }
+  if (rootEl) {
+    (rootEl as any).__paperRadarPrefsBound = true;
+  }
+
+  bindLLMProfiles(win);
   bindNumber(win, "fetch-days", "fetch.daysLimit");
   bindNumber(win, "fetch-workers", "fetch.workers");
   bindText(win, "collection-name", "collection.name");
@@ -50,6 +71,7 @@ export function registerPrefsScripts(win: Window): void {
   bindText(win, "journals-list", "feed.journals");
   bindText(win, "research-direction", "research.direction");
   bindText(win, "research-criteria", "research.criteria");
+  bindText(win, "elsevier-apikey", "abstracts.elsevierApiKey");
   bindCheckbox(win, "autorun-enable", "autoRun.enable");
   bindCheckbox(win, "crossref-enable", "feed.crossrefEnable");
   bindNumber(win, "crossref-rows", "feed.crossrefRows");
@@ -65,12 +87,270 @@ export function registerPrefsScripts(win: Window): void {
   );
 
   bindLlmTestButton(win);
+  bindFeedsManagement(win);
   bindFeedsTestButton(win);
   bindCriteriaGenerateButton(win);
+  bindCrossrefManagement(win);
   bindCrossrefTestButton(win);
 
   queryEl(win, "run-now")?.addEventListener("click", () => {
     void runPipeline();
+  });
+}
+
+/**
+ * Bind LLM profiles management: select active model, add/delete profile,
+ * and edit profile details. Selected model is the active model.
+ */
+function bindLLMProfiles(win: Window): void {
+  const rawSelectEl = queryEl(
+    win,
+    "llm-profile-select",
+  ) as HTMLSelectElement | null;
+  if (!rawSelectEl) {
+    return;
+  }
+  const selectEl: HTMLSelectElement = rawSelectEl;
+  const detailsEl = queryEl(win, "llm-details") as HTMLDetailsElement | null;
+  const badgeEl = queryEl(win, "llm-summary-badge") as HTMLElement | null;
+  const nameEl = queryEl(win, "llm-profile-name") as HTMLInputElement | null;
+  const urlEl = queryEl(win, "llm-baseurl") as HTMLInputElement | null;
+  const keyEl = queryEl(win, "llm-apikey") as HTMLInputElement | null;
+  const modelEl = queryEl(win, "llm-model") as HTMLInputElement | null;
+  const addBtn = queryEl(win, "llm-profile-add") as HTMLButtonElement | null;
+  const deleteBtn = queryEl(
+    win,
+    "llm-profile-delete",
+  ) as HTMLButtonElement | null;
+  const resultEl = queryEl(win, "llm-test-result");
+
+  let profiles = getLLMProfiles();
+  let activeId = getActiveProfileId();
+
+  /**
+   * Re-read the stored profiles. Every mutation starts from the persisted
+   * state instead of a snapshot taken when the pane was bound, so two open
+   * preference windows (or a run in the background) can never make one of them
+   * save a stale array that silently drops another profile.
+   */
+  function reloadProfiles(): void {
+    profiles = getLLMProfiles();
+    if (!profiles.some((p) => p.id === activeId)) {
+      activeId = profiles[0]?.id || "default";
+    }
+  }
+
+  function persistProfiles(): void {
+    saveLLMProfiles(profiles);
+  }
+
+  /**
+   * The profile currently shown in the form. Never falls back to an unrelated
+   * profile for writing: a stale active id is healed first, otherwise typing
+   * into the form would overwrite a different model's settings.
+   */
+  function getCurrentProfile(): LLMProfile {
+    const found = profiles.find((p) => p.id === activeId);
+    if (found) {
+      return found;
+    }
+    activeId = profiles[0]?.id || "default";
+    setActiveProfileId(activeId);
+    return profiles[0];
+  }
+
+  /** "新建模型" / "新建模型 2" / "新建模型 3" ... */
+  function uniqueProfileName(base: string): string {
+    const taken = new Set(profiles.map((p) => p.name));
+    if (!taken.has(base)) {
+      return base;
+    }
+    for (let i = 2; i < 1000; i++) {
+      const candidate = `${base} ${i}`;
+      if (!taken.has(candidate)) {
+        return candidate;
+      }
+    }
+    return `${base} ${Date.now()}`;
+  }
+
+  /**
+   * Ids must be unique even when two clicks land in the same millisecond,
+   * otherwise both profiles would share an id and edits would land on the
+   * wrong one.
+   */
+  function uniqueProfileId(): string {
+    const taken = new Set(profiles.map((p) => p.id));
+    const base = `profile_${Date.now()}`;
+    if (!taken.has(base)) {
+      return base;
+    }
+    for (let i = 2; i < 1000; i++) {
+      const candidate = `${base}_${i}`;
+      if (!taken.has(candidate)) {
+        return candidate;
+      }
+    }
+    return `${base}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function syncActiveToPrefs(profile: LLMProfile): void {
+    setPrefAny("llm.baseUrl", profile.baseUrl);
+    setPrefAny("llm.apiKey", profile.apiKey);
+    setPrefAny("llm.model", profile.model);
+  }
+
+  function updateSummaryBadge(): void {
+    if (!badgeEl) {
+      return;
+    }
+    const current = getCurrentProfile();
+    const isExpanded = Boolean(detailsEl?.open);
+    const actionText = isExpanded
+      ? getString("pref-llm-action-collapse")
+      : getString("pref-llm-action-expand");
+    badgeEl.textContent = getString("pref-llm-summary-badge", {
+      args: { name: current.name, action: actionText },
+    });
+  }
+
+  function updateInputFields(profile: LLMProfile): void {
+    if (nameEl) {
+      nameEl.value = profile.name;
+    }
+    if (urlEl) {
+      urlEl.value = profile.baseUrl;
+    }
+    if (keyEl) {
+      keyEl.value = profile.apiKey;
+    }
+    if (modelEl) {
+      modelEl.value = profile.model;
+    }
+    if (resultEl) {
+      resultEl.textContent = "";
+    }
+  }
+
+  function renderSelectOptions(): void {
+    selectEl.innerHTML = "";
+    for (const p of profiles) {
+      const opt = win.document.createElementNS(
+        "http://www.w3.org/1999/xhtml",
+        "option",
+      ) as HTMLOptionElement;
+      opt.value = p.id;
+      opt.textContent = p.name || p.model || p.id;
+      selectEl.appendChild(opt);
+    }
+    selectEl.value = activeId;
+  }
+
+  renderSelectOptions();
+  const current = getCurrentProfile();
+  activeId = current.id;
+  updateInputFields(current);
+  syncActiveToPrefs(current);
+  updateSummaryBadge();
+
+  detailsEl?.addEventListener("toggle", updateSummaryBadge);
+
+  selectEl.addEventListener("change", () => {
+    reloadProfiles();
+    activeId = selectEl.value;
+    setActiveProfileId(activeId);
+    const p = getCurrentProfile();
+    updateInputFields(p);
+    syncActiveToPrefs(p);
+    updateSummaryBadge();
+  });
+
+  const onFieldChange = (): void => {
+    reloadProfiles();
+    const p = getCurrentProfile();
+    if (nameEl) {
+      p.name = nameEl.value;
+      const opt = selectEl.querySelector(`option[value="${p.id}"]`);
+      if (opt) {
+        opt.textContent =
+          p.name || getString("pref-llm-profile-new-default-name");
+      }
+    }
+    if (urlEl) {
+      p.baseUrl = urlEl.value.trim();
+    }
+    if (keyEl) {
+      p.apiKey = keyEl.value.trim();
+    }
+    if (modelEl) {
+      p.model = modelEl.value.trim();
+    }
+
+    persistProfiles();
+    syncActiveToPrefs(p);
+    updateSummaryBadge();
+  };
+
+  nameEl?.addEventListener("input", onFieldChange);
+  nameEl?.addEventListener("change", onFieldChange);
+  urlEl?.addEventListener("input", onFieldChange);
+  urlEl?.addEventListener("change", onFieldChange);
+  keyEl?.addEventListener("input", onFieldChange);
+  keyEl?.addEventListener("change", onFieldChange);
+  modelEl?.addEventListener("input", onFieldChange);
+  modelEl?.addEventListener("change", onFieldChange);
+
+  addBtn?.addEventListener("click", () => {
+    reloadProfiles();
+    const newId = uniqueProfileId();
+    const newProfile: LLMProfile = {
+      id: newId,
+      name: uniqueProfileName(getString("pref-llm-profile-new-default-name")),
+      baseUrl: "",
+      apiKey: "",
+      model: "",
+    };
+    profiles.push(newProfile);
+    activeId = newId;
+    persistProfiles();
+    setActiveProfileId(activeId);
+    syncActiveToPrefs(newProfile);
+
+    renderSelectOptions();
+    updateInputFields(newProfile);
+    updateSummaryBadge();
+
+    nameEl?.focus();
+    nameEl?.select();
+  });
+
+  deleteBtn?.addEventListener("click", () => {
+    reloadProfiles();
+    if (profiles.length <= 1) {
+      win.alert(getString("pref-llm-profile-delete-last-warn"));
+      return;
+    }
+    const toDelete = getCurrentProfile();
+    const confirmMsg = getString("pref-llm-profile-delete-confirm", {
+      args: { name: toDelete.name },
+    });
+    if (!win.confirm(confirmMsg || `确定要删除模型「${toDelete.name}」吗？`)) {
+      return;
+    }
+
+    const removedIndex = profiles.findIndex((p) => p.id === toDelete.id);
+    profiles = profiles.filter((p) => p.id !== toDelete.id);
+    // Keep the user near where they were instead of always jumping to the top.
+    const nextIndex = Math.min(Math.max(removedIndex, 0), profiles.length - 1);
+    activeId = profiles[nextIndex].id;
+    persistProfiles();
+    setActiveProfileId(activeId);
+
+    const next = getCurrentProfile();
+    syncActiveToPrefs(next);
+    renderSelectOptions();
+    updateInputFields(next);
+    updateSummaryBadge();
   });
 }
 
@@ -174,6 +454,74 @@ function bindFeedsTestButton(win: Window): void {
 }
 
 /**
+ * Bind RSS feeds management: live count badge and reset to defaults.
+ */
+function bindFeedsManagement(win: Window): void {
+  const textarea = queryEl(win, "feeds-list") as HTMLTextAreaElement | null;
+  const badge = queryEl(win, "feeds-count-badge") as HTMLElement | null;
+  const resetBtn = queryEl(win, "feeds-reset") as HTMLButtonElement | null;
+
+  function updateBadge(): void {
+    if (!badge || !textarea) return;
+    const count = textarea.value
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean).length;
+    badge.textContent = getString("pref-feeds-count-badge", {
+      args: { count },
+    });
+  }
+
+  updateBadge();
+  textarea?.addEventListener("input", updateBadge);
+  textarea?.addEventListener("change", updateBadge);
+
+  resetBtn?.addEventListener("click", () => {
+    if (win.confirm(getString("pref-feeds-reset-confirm"))) {
+      if (textarea) {
+        textarea.value = DEFAULT_FEEDS_LIST;
+      }
+      setPrefAny("feeds.list", DEFAULT_FEEDS_LIST);
+      updateBadge();
+    }
+  });
+}
+
+/**
+ * Bind Crossref journals management: live count badge and reset to defaults.
+ */
+function bindCrossrefManagement(win: Window): void {
+  const textarea = queryEl(win, "journals-list") as HTMLTextAreaElement | null;
+  const badge = queryEl(win, "crossref-count-badge") as HTMLElement | null;
+  const resetBtn = queryEl(win, "journals-reset") as HTMLButtonElement | null;
+
+  function updateBadge(): void {
+    if (!badge || !textarea) return;
+    const count = textarea.value
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean).length;
+    badge.textContent = getString("pref-crossref-count-badge", {
+      args: { count },
+    });
+  }
+
+  updateBadge();
+  textarea?.addEventListener("input", updateBadge);
+  textarea?.addEventListener("change", updateBadge);
+
+  resetBtn?.addEventListener("click", () => {
+    if (win.confirm(getString("pref-crossref-reset-confirm"))) {
+      if (textarea) {
+        textarea.value = DEFAULT_JOURNALS_LIST;
+      }
+      setPrefAny("feed.journals", DEFAULT_JOURNALS_LIST);
+      updateBadge();
+    }
+  });
+}
+
+/**
  * Probe every journal currently typed in the Crossref list (from the textarea
  * directly, so unsaved edits count) and report which ISSNs are invalid.
  */
@@ -214,6 +562,9 @@ function bindCrossrefTestButton(win: Window): void {
             results.push(
               await probeJournalIssn(String(issn || "").trim(), name),
             );
+            resultEl.textContent = getString("pref-crossref-test-progress", {
+              args: { done: results.length, total: lines.length },
+            });
           }
         },
       );

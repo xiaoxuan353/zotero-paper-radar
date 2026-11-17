@@ -12,5 +12,18 @@ export default zotero({
         "@typescript-eslint/no-unused-vars": "off",
       },
     },
+    {
+      // Plain-Node helper scripts (e.g. the scaffold patch run by prebuild)
+      files: ["scripts/**/*.cjs"],
+      languageOptions: {
+        globals: {
+          process: "readonly",
+          console: "readonly",
+          require: "readonly",
+          module: "readonly",
+          __dirname: "readonly",
+        },
+      },
+    },
   ],
 });

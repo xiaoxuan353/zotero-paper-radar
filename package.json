@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "zotero-paper-radar",
   "type": "module",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Paper Radar (论文雷达): monitor journal RSS feeds, AI-filter papers by research direction, and save high-value papers into Zotero with AI review notes.",
   "config": {
     "addonName": "Paper Radar",
@@ -22,6 +22,7 @@
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "zotero-plugin serve",
+    "prebuild": "node scripts/patch-scaffold.cjs",
     "build": "zotero-plugin build && tsc --noEmit",
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
